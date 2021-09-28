@@ -1,4 +1,1 @@
-[submodule "public"]
-	path = public
-	url = git@github.com:rxOred/rxored.github.io.git
-	branch = main
+
