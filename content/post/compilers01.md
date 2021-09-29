@@ -6,7 +6,7 @@ draft: false
 
 # Compilers
 This article is all about compilers.
-For many people, a compiler is mystery. for them, it is like a magical black box that takes the source file as an input and generates a binary file which can be executed.
+For many people, a compiler is a mystery. for them, it is like a magical black box that takes the source file as an input and generates a binary file that can be executed.
 However, the truth to be told, compilers are not wizards. In this article we will start from the introduction to front-end of a compiler in a reverse engineering perspective.
 Next articles will contain detailed explainations of the optimizer, and the back-end.
 
