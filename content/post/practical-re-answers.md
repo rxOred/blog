@@ -96,8 +96,21 @@ This 2 part series post will provide some solutions for Exercises in chapter 1, 
       ; this is bit important. lot of malware authors use this method to access win32 APIs
    ```
 
-3) same thing that happened to many of above snippets. it will crash with a seg fault. The reason is that, we are returning to 
+3) same thing that happened to many of above snippets ?. it will crash with a seg fault. The reason is that, we are returning to 
    a totally unknown address.
+   In this case we havent pushed anything to the stack other than return address and base pointer of the prev stack frame. and when ret pops the value from stack to eip, and what we get is base of the previous
+   stack frame. Guess what? stack is non-executable :3
+
+
+         --------------------------
+                  eax (y)
+         --------------------------
+                  ecx (x)
+         --------------------------
+               (return addr)
+         --------------------------
+                    ebp             <------- esp
+         --------------------------
 
 4) edx:eax will be used.
 
