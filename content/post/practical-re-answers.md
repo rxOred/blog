@@ -53,7 +53,7 @@ This 2 part series post will provide some solutions for Exercises in chapter 1, 
 # Chapter 1, page 17
 
 1) So, in this exercise we want to write a program that reads instruction pointer :3. here we go
-   ```asm
+   ```nasm
       ; here we are reading address of the instruction after the call instruction.
       readeip: call     lbl         ; call lbl, this pushes address of next instruction to the stack
                mov      ebx, 0
@@ -65,7 +65,7 @@ This 2 part series post will provide some solutions for Exercises in chapter 1, 
    ```
 
 2) Next we have to set eip to 0xAABBCCDD
-   ```asm
+   ```nasm
       ; 1. here we when we call, return address is pushed to stack
       writeeip:   call  write
                   mov   ebx,  0
@@ -77,7 +77,7 @@ This 2 part series post will provide some solutions for Exercises in chapter 1, 
                   ret   ; cause a segfault
    ```
 
-   ```asm
+   ```nasm
       writeeip:   call  write
 
       ; remember, ret just pops whatever at esp to eip
@@ -85,12 +85,12 @@ This 2 part series post will provide some solutions for Exercises in chapter 1, 
                   ret
    ```
 
-   ```asm
+   ```nasm
       writeeip: jmp  0xAABBCCDD
       ;yeaup simple as that
    ```
 
-   ```asm
+   ```nasm
       writeeip: mov     eax, 0xAABBCCDD
                 call    eax
       ; this is bit important. lot of malware authors use this method to access win32 APIs
