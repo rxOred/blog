@@ -2,6 +2,8 @@
 title: "Practical Reverse Engineering Answers"
 date: 2021-09-29T09:46:25Z
 draft: false
+tags: ["reverse-engineering"]
+categories: ["write-up"]
 ---
 
 # Introduction

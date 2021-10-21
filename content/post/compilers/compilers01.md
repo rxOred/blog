@@ -2,6 +2,8 @@
 title: "Compilers 101 - The front end"
 date: 2021-09-28T22:58:02Z
 draft: false
+tags: ["reverse-engineering", "compilers"]
+categories: ["guide"]
 ---
 
 # Compilers

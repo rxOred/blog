@@ -2,6 +2,8 @@
 title: "Practical Reverse Engineering Answers 2 - sample_J DllMain"
 date: 2021-10-02T00:40:06Z
 draft: false
+tags: ["reverse-engineering"]
+categories: ["write-up"]
 ---
 
 So last time we finished some exercises from the book pratical reverse engineering. Now, we have page 35 exercises. I wont cover exercise here because some are really straight forward.
