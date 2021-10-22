@@ -6,7 +6,7 @@ tags: ["data-structures", "reverse-engineering", "cpp"]
 categories: ["guide"]
 ---
 
-Oh hi. Personally, I'm not a big fan of competitive programming. Anyhow, I wanted to test my DSA skills so i started doing leetcode a week(or two ig)ago. And I did spent an entire day solving some of those challenges. Eventually I came cross a medium level challege, named `Reorder List`. problem is pretty simple, you are given a head node of a linked list, what you have to do is kinda shuffle nodes around. 
+Oh hi. Personally, I'm not a big fan of competitive programming. Anyhow, I wanted to test my DSA skills so i started doing leetcode a week(or two ig)ago. And I spent an entire day solving some of those challenges. Eventually I came cross a medium level challege, named `Reorder List`. problem is pretty simple, you are given a head node of a linked list, what you have to do is kinda shuffle nodes around. 
 
 And in this article, I'm hoping to cover everything from what is a linked list, how they are implemented in assembly to solving and reversing the solution of the above problem.
 
