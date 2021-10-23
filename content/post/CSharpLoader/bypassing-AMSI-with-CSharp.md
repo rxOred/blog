@@ -29,6 +29,6 @@ AMSI is a standard interface that allows applications to interact with anti malw
 
 As it is clear from those default features, AMSI specifically provides anti malware security machanisms to defend against dynamic script-base malware. In this article Im going to focus only on windows powershell.
 
-So lets take a simple .net malicious assembly as an example.
+So lets take SafeSploit as our example .net assembly.
 
-
+![main](/img/CSharpLoader/AMSI.png)
