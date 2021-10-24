@@ -82,7 +82,7 @@ So, how can we bypass this?, well before that, we have to dive deep into AMSI in
 
 ## AMSI internals
 
-As i previously mentioned, any anti malware vendor can become an AMSI provider and inspect data sent by applications via the AMSI interface. If the content submitted for scan is detected as malicious, the consuming application will be alerted. In our case, Windows powershell uses Windows defender.
+As i previously mentioned, any anti malware vendor can become an AMSI provider and inspect data sent by applications via the AMSI interface. If the content submitted for scan is detected as malicious, the consuming application will be alerted. In our case, Windows powershell uses Windows defender as the AMSI provider.
 When we input a malicous command or execute a malicous program, powershell will pass everything to windows defender before doing any execution.
 It is anti malware vendor's duty to do all the scans and detect whether recieved input is malicous or not.
 
