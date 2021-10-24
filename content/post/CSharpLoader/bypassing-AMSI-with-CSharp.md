@@ -1,5 +1,5 @@
 ---
-title: "Bypassing AMSI With CSharp"
+title: "Bypassing AMSI(Antimalware Scan Interface) With CSharp"
 date: 2021-10-23T14:20:04Z
 draft: true
 tags: ["offensive-sekurity", "windoz", "cs"]
@@ -18,13 +18,11 @@ And because of that, malware authors use various techniques to bypass those defe
 
 consider the following example, that i took from msdn.
 
-```ps1
+```bash
     function displayEvilString
     {
         Write-Host 'pwnd!'
     }
-
-    displayEvilString
 ```
 
 Assuming the above powershell snippet as malicous, we can write a signature to 
@@ -32,8 +30,8 @@ detect the malware. this signature can be `Write-Host 'pwnd!'` or simply `'pwnd!
 
 So to avoid signature based detection, above snippet can be obfuscated like shown below.
 
-```ps1
-    function obfuscated
+```bash
+    function obfuscatedDisplayEvilString
     {
         $xorKey = 123
         $code = "LHsJexJ7D3see1Z7M3sUewh7D3tbe1x7C3sMexV7H3tae1x7"
@@ -88,6 +86,19 @@ As i previously mentioned, any anti malware vendor can become an AMSI provider a
 When we input a malicous command or execute a malicous program, powershell will pass everything to windows defender before doing any execution.
 It is anti malware vendor's duty to do all the scans and detect whether recieved input is malicous or not.
 
-For application programmers to interact with the AMSI, it provides a dll named, amsi.dll. Let's examine powershell from process hacker.
+For application programmers to interact with the AMSI, it provides a dll called, amsi.dll. Let's examine powershell from process hacker to check whether this dll is loaded.
 
 ![PoweshellProperties](/img/CSharpLoader/powershellProperties.png)
+
+as we can see, amsi.dll has been loaded into powershell.exe. Now, let's take a look at this dll in depth and see if we can find anything interesting.
+Even without looking at the dll, we can think of a technique to bypass AMSI, using dll injection and inpersonating several functions exported by the dll. Anyway lets choose the hard way and before dive deep into disassembly, lets examine the export table of amsi.dll.
+
+![Exports](/img/CSharpLoader/Exports.png)
+
+Out of the above exported functions, only few are important to us.
+
+-   AmsiScanBuffer
+-   AmsiScanString
+
+And we will go through each of those functions in a high level.
+
