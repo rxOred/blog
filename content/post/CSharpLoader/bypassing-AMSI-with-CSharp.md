@@ -1,7 +1,7 @@
 ---
 title: "Bypassing AMSI(Antimalware Scan Interface) With CSharp"
 date: 2021-10-23T14:20:04Z
-draft: true
+draft: false
 tags: ["offensive-sekurity", "windoz", "cs"]
 categories: ["guide"]
 ---
