@@ -134,27 +134,36 @@ which can be decompiled down into,
 ```cpp
     HRESULT __stdcall AmsiScanBuffer(
             HAMSICONTEXT amsiContext, 
-            PVOID buffer, ULONG length, 
+            PVOID buffer, 
+            ULONG length, 
             LPCWSTR contentName, 
             HAMSISESSION amsiSession, 
             AMSI_RESULT *result)
     {
+        auto var;
         if ((handle == &handle) || (handle[0x1c] == 4))
         {
             if (buffer == NULL || result == NULL || amsiContext == NULL || 
                 (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0 ||
                 amsiContext[16] == 0x0) 
             {
-                // do something useless ...
-            } else {
-                // do something useless ...
+                var = 0x80070057;    
+            } 
+            else 
+            {
+                // 
+                var = *(*(amsiContext + 0x10) + 0x18)();
             }
         }else 
         {
-            SomeFunc(handle[16], buffer, length, amsiSession, result)
+            SomeFunc(handle[16], buffer, length, amsiSession, result);
         }
     }
 ```
+
+So the function takes 6 parameters. One of which is the pointer to the `AMSI_RESULT` structure as I explained above - `*result`. According to msdn, others include a buffer, which will be scanned by the anti malware vendor - `buffer`, length of the buffer - `length`, filename, URL, unique script ID - `contentName` and a handler to the session - `HAMSISESSION` structure.
+
+
 
 Let's just attach powershell to windbg, place a breakpoint in `AmsiScanBuffer` and see if we can find anything more.
 
