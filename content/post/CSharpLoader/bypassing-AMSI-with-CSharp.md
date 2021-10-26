@@ -68,7 +68,7 @@ when running a script, eventhough the code is initially obfuscated, it has to be
 
 AMSI can also be useful in scenarios like invoking malicious powershell commands. 
 
-In this article Im going to focus only on windows powershell.
+In this article Im going to focus on the internals of AMSI. in the next one, I'll provide y'all with some bypass techniques.
 
 ## Demo
 
@@ -132,44 +132,53 @@ followed by,
 which can be decompiled down into,
 
 ```cpp
-    HRESULT __stdcall AmsiScanBuffer(
+    HRESULT __stdcall AmsiScanBuffer
+    (
             HAMSICONTEXT amsiContext, 
             PVOID buffer, 
             ULONG length, 
             LPCWSTR contentName, 
             HAMSISESSION amsiSession, 
-            AMSI_RESULT *result)
+            AMSI_RESULT *result
+    )
     {
         auto var;
-        if ((handle == &handle) || (handle[0x1c] == 4))
+        if ((handle != &handle) && (handle[0x1c] != 4))
         {
-            if (buffer == NULL || result == NULL || amsiContext == NULL || 
-                (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0 ||
-                amsiContext[16] == 0x0) 
-            {
-                var = 0x80070057;    
-            } 
-            else 
-            {
-                // 
-                var = *(*(amsiContext + 0x10) + 0x18)();
-            }
-        }else 
+            SomeFunc(handle[16], buffer, lengthm amsiSession, result);
+        }
+
+        if (buffer == NULL || result == NULL || amsiContext == NULL || 
+            (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0 ||
+            amsiContext[16] == 0x0) 
         {
-            SomeFunc(handle[16], buffer, length, amsiSession, result);
+            var = 0x80070057;    
+        } 
+        else 
+        {
+            /* ################################ */
+            var = *(*(amsiContext + 0x10) + 0x18)();
         }
     }
 ```
 
-So the function takes 6 parameters. One of which is the pointer to the `AMSI_RESULT` structure as I explained above - `*result`. According to msdn, others include a buffer, which will be scanned by the anti malware vendor - `buffer`, length of the buffer - `length`, filename, URL, unique script ID - `contentName` and a handler to the session - `HAMSISESSION` structure.
+So the function takes 6 parameters. One of which is the pointer to the `AMSI_RESULT` structure as I explained above - `*result`. According to msdn, others include a buffer, which will be 
+scanned by the anti malware vendor - `buffer`, length of the buffer - `length`, filename, URL, unique script ID - `contentName` and a handler to the session - `HAMSISESSION` structure.
 
+then function do some checks against the handle, if the checks turns out to be false, it calls a random function which i havent really analyzed and continue the exection from the next if condition. else, it continues exection without ever calling that random fucntion. (i named that 'random function' `SomeFunc` :3 ).
 
+then there is a pretty huge if condition, which im not gonna go through (read the decompiled version and understand it :3 ). And if the if condition fails, we call another random function but this time, its not a random function. it is a function pointer that is extracted from the `amsiContext` parameter. And im pretty much sure that this function pointer is a somekind of an handler to the anti malware vendor's scanning interface.
 
-Let's just attach powershell to windbg, place a breakpoint in `AmsiScanBuffer` and see if we can find anything more.
+This makes sense because, in order to call `AmsiScanBuffer`, one has to initialize amsi with `AmsiInitialize` and open a session if required with `AmsiOpenSession`. And `AmsiInitialize` returns a handler and that handler is then passed down to this function as the first parameter (amsiContext). 
 
-![breakpoint at AmsiScanBuffer](/img/CSharpLoader/breakpoint.png)
+So the conclusion is, when `AmsiInitialize` function gets called, it initializes the anti malware vendor, registers it and returns a handler which contains a pointer to a registered functio.`AmsiScanBuffer` function is responsible for doing some basics checks on the handler, extracting registered function from the handler and calling it with neccessary parameters.
 
-and here we go! a hit.
+## AmsiScanString
 
-![breakpoint hit](/img/CSharpLoader/bphit.png)
+this is pretty much the same as previous function except this one scans for strings. lets just do a small analysis on this on too for the sake of completeness.
 
+Oh no. it looks like this one calls `AmsiScanBuffer` internally.
+
+## that's it kids!
+
+So yeah thats it for now... we explored AMSI in depth in this article. In the next one, I will go through some common AMSI bypass techniques.
