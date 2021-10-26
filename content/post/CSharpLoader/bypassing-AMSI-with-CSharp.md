@@ -142,15 +142,12 @@ which can be decompiled down into,
         if ((handle == &handle) || (handle[0x1c] == 4))
         {
             if (buffer == NULL || result == NULL || amsiContext == NULL || 
-                (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0) 
+                (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0 ||
+                amsiContext[16] == 0x0) 
             {
-                goto end;
-                ///
+                // do something useless ...
             } else {
-                var_30 = amsiContext[8];
-                var_48 = someGlobal;
-                var_40 = buffer;
-
+                // do something useless ...
             }
         }else 
         {
