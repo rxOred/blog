@@ -1,8 +1,8 @@
 ---
-title: "Bypassing AMSI(Antimalware Scan Interface) With CSharp"
+title: "Bypassing AMSI (Antimalware Scan Interface) With CSharp 0x00"
 date: 2021-10-23T14:20:04Z
 draft: false
-tags: ["offensive-sekurity", "windoz", "cs"]
+tags: ["offensive-sekurity", "windoz", "reverse-engineering"]
 categories: ["guide"]
 ---
 
@@ -45,7 +45,7 @@ So to avoid signature based detection, above snippet can be obfuscated like show
 
 And this is a win for malware authors, since this is beyond what anti malware solutions can emulate or detect, until AMSI joins the conversation.
 
-## AntiMalware Scan Interface (AMSI)
+## Antimalware Scan Interface (AMSI)
 
 AMSI is a standard interface that allows applications to interact with anti malware products installed on the system. Which means is that it provides
 an API for Application developers. Application developers can use the API to implement security features to make sure that end user is safe. According
@@ -95,10 +95,75 @@ Even without looking at the dll, we can think of a technique to bypass AMSI, usi
 
 ![Exports](/img/CSharpLoader/Exports.png)
 
-Out of the above exported functions, only few are important to us.
+Out of the above exported functions, only two are important to us.
 
 -   AmsiScanBuffer
 -   AmsiScanString
 
-And we will go through each of those functions in a high level.
+## AmsiScanBuffer
+
+[here](https://docs.microsoft.com/en-us/windows/win32/api/amsi/nf-amsi-amsiscanbuffer), check out the documentation first. According to the msdn and as well as the name suggests, `AmsiScanBuffer` function scans a buffer that is filled for malware.
+
+As msdn says, this function returns `S_OK` if the call is successful. However return value does not idicate whether the buffer is malicous. instead, function uses an output parameter of type `AMSI_RESULT` to send the scan results.
+
+```c
+    typedef enum AMSI_RESULT {
+        AMSI_RESULT_CLEAN,
+        AMSI_RESULT_NOT_DETECTED,
+        AMSI_RESULT_BLOCKED_BY_ADMIN_START,
+        AMSI_RESULT_BLOCKED_BY_ADMIN_END,
+        AMSI_RESULT_DETECTED
+    } ;
+```
+And heres how this function looks like in disassembly.
+
+![](/img/CSharpLoader/AmsiScanBufferPrologue.png)
+
+here we can see stack pointer is stored in `r11` register and since this is x64 _stdcall, first four parameters are stored in rcx, rdx, r8 and r9 registers. Rest are stored in the stack. With that information, we can assume a pointer to the `AMSI_RESULT` enum is stored in the stack. 
+
+then we can see a series of comparisons around global data.
+
+![](/img/CSharpLoader/AmsiScanBuffer2.png)
+
+followed by,
+
+![](/img/CSharpLoader/AmsiScanBuffer4.png)
+
+which can be decompiled down into,
+
+```cpp
+    HRESULT __stdcall AmsiScanBuffer(
+            HAMSICONTEXT amsiContext, 
+            PVOID buffer, ULONG length, 
+            LPCWSTR contentName, 
+            HAMSISESSION amsiSession, 
+            AMSI_RESULT *result)
+    {
+        if ((handle == &handle) || (handle[0x1c] == 4))
+        {
+            if (buffer == NULL || result == NULL || amsiContext == NULL || 
+                (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0) 
+            {
+                goto end;
+                ///
+            } else {
+                var_30 = amsiContext[8];
+                var_48 = someGlobal;
+                var_40 = buffer;
+
+            }
+        }else 
+        {
+            SomeFunc(handle[16], buffer, length, amsiSession, result)
+        }
+    }
+```
+
+Let's just attach powershell to windbg, place a breakpoint in `AmsiScanBuffer` and see if we can find anything more.
+
+![breakpoint at AmsiScanBuffer](/img/CSharpLoader/breakpoint.png)
+
+and here we go! a hit.
+
+![breakpoint hit](/img/CSharpLoader/bphit.png)
 
