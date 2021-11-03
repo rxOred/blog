@@ -1,9 +1,5 @@
 
 [submodule "public"]
 	path = public
-<<<<<<< HEAD
 	url = https://github.com/rxOred/rxored.github.io.git
-=======
-	url = git@github.com:rxOred/rxOred.github.io
->>>>>>> b6028aaf9aa9ff87a80d23ff7bbc81e21adf7fc8
 	branch = main
