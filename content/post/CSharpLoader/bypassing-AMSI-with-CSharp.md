@@ -2,7 +2,7 @@
 title: "Bypassing AMSI (Antimalware Scan Interface) With CSharp 0x00"
 date: 2021-10-23T14:20:04Z
 draft: false
-tags: ["offensive-sekurity", "windoz", "reverse-engineering"]
+tags: ["offensive-sekuruty", "windoz", "reverse-engineering"]
 categories: ["guide"]
 ---
 
@@ -10,7 +10,7 @@ Ah yes. Windoz, the most popular desktop operating system solution out there. An
 
 Windows has a really good reputation in the malware industry. Red teamers often use this to their advantage and use malware to maintain persistent access to the victim machine.
 
-Out of the tools that they use to fulfill this task, Windows PowerShell is important. Windows PowerShell is a powerful administrative tool mostly used by sysadmins. And mainly because of that reason, hackers often utilize this tool. Another most important software when it comes to windows malware is Microsoft office software. It is a proven fact that the most notable malware outbreaks in the past few years have something to do with VBA macros. in 2007 Microsoft shipped office packages with macro disabled by default. Yet those type of malware is still alive and well.
+Out of the tools that they use to fulfill this task, script-based malware and payloads play a major role. And to execute those stuff, they mostly use Windows PowerShell, a powerful administrative tool mostly used by sysadmins. Another most important software when it comes to windows malware is Microsoft office software. It is a proven fact that the most notable malware outbreaks in the past few years have something to do with VBA macros. in 2007 Microsoft shipped office packages with macro disabled by default. Yet those type of malware is still alive and well.
 
 And as a result, Microsoft and antimalware vendors have developed many security mechanisms to deal with those threats. For example, modern anti-malware solutions can statically analyze scripts, binaries and detect whether they are malicious or not using signatures such as strings.
 
