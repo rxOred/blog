@@ -141,21 +141,21 @@ which can be decompiled down into,
     )
     {
         auto var;
-        if ((handle != &handle) && (handle[0x1c] != 4))
+        if ((handle != &handle) && (*(handle + 0x1c)) != 4))
         {
-            SomeFunc(handle[16], buffer, lengthm amsiSession, result);
+            SomeFunc(*(handle + 4), buffer, lengthm amsiSession, result);
         }
 
         if (buffer == NULL || result == NULL || amsiContext == NULL || 
-            (*amsiContext) == 0x49534D41 || amsiContext[8] == 0x0 ||
-            amsiContext[16] == 0x0) 
+            (*amsiContext) == 0x49534D41 || *(amsiContext + 2) == 0x0 ||
+            *(amsiContext + 4) == 0x0) 
         {
             var = 0x80070057;    
         } 
         else 
         {
             /* ################################ */
-            var = *(*(amsiContext + 0x10) + 0x18)();
+            var = *(*(amsiContext + 0x4) + 0x18)();
         }
     }
 ```
