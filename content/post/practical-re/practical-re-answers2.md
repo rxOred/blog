@@ -155,7 +155,7 @@ with that info, we can fill out the stub that searches for explorer.exe like thi
 
 combining all into a single stub, we will get something like this as the DllMain
 
-```c
+```cpp
    typedef struct idtr {
       DWORD idt_base;
       short idt_size;

@@ -1,5 +1,5 @@
 ---
-title: "Identifying and Reverse engineering Linked Lists constructs"
+title: "Identifying and Reverse engineering Linked List constructs"
 date: 2021-10-03T00:49:28Z
 draft: false
 tags: ["data-structures", "reverse-engineering", "cpp"]

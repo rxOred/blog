@@ -11,11 +11,13 @@ And I'm familiar with C/C++ (language of choice :), assembly, python and golang.
 
 I prefer to work alone but, I'm not hesitant to work with other developers and security/software engineers because the resulting experience is invaluable to me. :)
 
+Spread Anarchy! 
+
 ### Contact me
 
 - rxored@gmail.com
 - [github](https://github.com/rxOred)
 - [twitter](https://twitter.com/rxOred)
-- Spotify rxOred
+- [Spotify](https://open.spotify.com/playlist/6vtSGBschhTu2mhACkKjn1?si=7719126bf96c459c)
 - Discord rxOred#2655
 
