@@ -38,7 +38,7 @@ Lets see what this looks like in code.
 There's another important part of linked lists. which is the head/tail pointers. Head and tail pointers are used to track down head and tail of the linked list. which of those two is used is totally depend on the abstract data type. For example, linked list implementation of a stack may look like this
 
 
-```c
+```cpp
    class LinkedList {
       ListNode *head;
       int count;
@@ -50,7 +50,7 @@ with that, lets implement a stack data structure using linked lists.
 
 node
 
-```c
+```cpp
    class ListNode {
            int ln_value;
            ListNode *ln_next;
@@ -345,7 +345,7 @@ Here is what we should do to re-order the linked list.
 
 Here is the implementation.
 
-```c
+```cpp
     void ReorderList(ListNode *head)
     {
         /* seperating the list */
@@ -472,7 +472,6 @@ and yeap that's it. First it saves next nodes of the `start` and the `end` in tw
         jump loop
 
 
-
 ## THE END
 
-Soooo yeaaaah, Oh mmy freaking god i spent two days writing this damn article. I guess that is it. I hope yall understood what i did here :3
+Soooo yeaaaah, Oh mmy freaking god i spent two days writing this damned article. I guess that is it. I hope yall understood what i did here :3
