@@ -1,7 +1,11 @@
 ---
 title: "Setting Up Kdnet"
 date: 2021-11-08T21:55:11+05:30
+<<<<<<< HEAD
 draft: false
+=======
+draft: true 
+>>>>>>> 77211eb (.)
 tags: ['windoz']
 category: ['guide']
 ---
