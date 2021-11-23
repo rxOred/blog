@@ -9,8 +9,6 @@ rxOred's real name is Jayod, and I'm a 17-year-old, introverted, self-taught pro
 About my education, I started programming when I was 12 with Java. Then I taught myself many things related computer science and computer security.
 And I'm familiar with C/C++ (language of choice :), assembly, python and golang. Currently I follow a higher national diploma while doing A/Ls in technology + higher mathematics stream. 
 
-I prefer to work alone but, I'm not hesitant to work with other developers and security/software engineers because the resulting experience is invaluable to me. :)
-
 Spread Anarchy! 
 
 ### Contact me
