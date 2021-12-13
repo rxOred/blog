@@ -24,7 +24,7 @@ paginate = 5
   centerTheme = false
 
   # set a custom favicon (default is a `themeColor` square)
-  # favicon = "favicon.ico"
+  favicon = "favicon.ico"
 
   # set post to show the last updated
   # If you use git, you can set `enableGitInfo` to `true` and then post will automatically get the last updated
@@ -39,7 +39,7 @@ paginate = 5
   [languages.en]
     languageName = "English"
     title = "rxOred's blog"
-    subtitle = ":3"
+    subtitle = ""
     owner = ""
     keywords = ""
     copyright = ""
