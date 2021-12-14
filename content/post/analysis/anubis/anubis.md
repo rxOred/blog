@@ -1,7 +1,9 @@
 ---
-title: "Anubis"
+title: "Anubis, the android trojan"
 date: 2021-12-13T11:50:35Z
-draft: false
+draft: true
+cover: "/img/anubis/anubis.jpg"
+description: "reverse engineering the notorious android banking trojan"
 tags: ["reverse-engineering", "android", "malware"]
 ---
 
@@ -18,6 +20,7 @@ https://github.com/sk3ptre/AndroidMalware_2020/blob/master/anubis.zip
     - apktool
     - adb
     - frida
+    - mobsf
     - jd-gui
 
 # Setting things up
@@ -72,3 +75,47 @@ do that here.
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 ```
+
+As we can see, this malware can send, recieve SMS, read contacts, access location, read and write 
+to external storage. It is also requesting permission to get notified once when the system boots 
+up.
+
+![androguard results](/img/anubis/anubis_androgaurd.png)
+
+here we can see that the application has 17 activities.
+
+![androguard results](/img/anubis/anubis_androguard.png)
+
+here androguard shows us recievers, main activity and the services. 
+
+However all the above stuff are obfuscated.
+
+Lets try to identify the obfuscator by analyzing the smali code.
+
+
+Now we have a very basic idea of what malware is capable of, its time for some dynamic analysis
+
+before running the sample on the vm, it wwould be better to run it on a automated framework. Then 
+we can focus on the specific details. Here im going to use MobSF.
+
+![automated analysis](/img/anubis/anubis_mobsf.png)
+
+![mobsf results](/img/anubis/anubis_mobsfstatic.png)
+
+with the above result, we can confirm our assumptions on receivers, activities and services we made
+considering the result of androguard.
+
+MobSF also provides us with some other useful information like, which activities, services use 
+which APIs, which classes makes use of requested permissions and so on.
+
+![apis](/img/anubis/anubis_mobsfapi.png)
+
+
+
+first, im going to stop the emulator and restart it with following parameters
+
+`-tcpdump dump.cap`
+
+so we can take a look at network traffic later on, in case. Im also going to setup burp-suite to analyze http traffic.
+
+

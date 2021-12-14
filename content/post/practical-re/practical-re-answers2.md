@@ -1,7 +1,9 @@
 ---
-title: "Practical Reverse Engineering Answers 2 - sample_J DllMain"
+title: "sample_j DllMain"
 date: 2021-10-02T00:40:06Z
 draft: false
+cover: "/img/practicalre/re2.png"
+description: "Practical Reverse Engineering Answers 2 - sample_J DllMain"
 tags: ["reverse-engineering"]
 categories: ["write-up"]
 ---

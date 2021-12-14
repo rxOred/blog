@@ -1,7 +1,9 @@
 ---
-title: "Practical Reverse Engineering Answers"
+title: "Practical Reverse Engineering writeup"
 date: 2021-09-29T09:46:25Z
 draft: false
+cover: "img/practicalre/re1.png"
+description: " "
 tags: ["reverse-engineering"]
 categories: ["write-up"]
 ---

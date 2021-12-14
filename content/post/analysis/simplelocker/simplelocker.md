@@ -2,6 +2,8 @@
 title: "Simplelocker, an android ransomware"
 date: 2021-11-18T13:07:00Z
 draft: false
+cover: "/img/simplelocker/simplelocker.jpg"
+description: "dissecting a simple android ransomware"
 tags: ["reverse-engineering", "ransomware", "android"]
 categories: ["report"]
 ---

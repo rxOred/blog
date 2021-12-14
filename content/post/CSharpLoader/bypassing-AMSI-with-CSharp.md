@@ -1,7 +1,9 @@
 ---
-title: "Bypassing AMSI (Antimalware Scan Interface) With CSharp 0x00"
+title: "From AMSI to Reflection"
 date: 2021-10-23T14:20:04Z
 draft: false
+cover: "img/CSharpLoader/windowsdefender.jpg"
+description: "Reverse engineering AMSI internals"
 tags: ["offensive-sekuruty", "windoz", "reverse-engineering"]
 categories: ["guide"]
 ---

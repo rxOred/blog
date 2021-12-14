@@ -1,7 +1,9 @@
 ---
-title: "Identifying and Reverse engineering Linked List constructs"
+title: "Reverse engineering Linkeds lists"
 date: 2021-10-03T00:49:28Z
 draft: false
+cover: "/img/reverse-linkedlist/linkedlist.png"
+description: "Identifying and Reverse engineering Linked List constructs"
 tags: ["data-structures", "reverse-engineering", "cpp"]
 categories: ["guide"]
 ---
@@ -10,7 +12,7 @@ Oh hi. Personally, I'm not a big fan of competitive programming. Anyhow, I wante
 
 And in this article, I'm hoping to cover everything from what is a linked list, how they are implemented in assembly to solving and reversing the solution of the above problem.
 
-## What is it? and implementation
+## What is it? and Implementation 
 
 A linked list is a data structure. unlike an array where memory is organized linearly, nodes of linked list is scrattered around memory. Each of these nodes contains a pointer to the next node and thats how those scrattered nodes are located.
 

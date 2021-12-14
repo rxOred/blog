@@ -1,7 +1,9 @@
 ---
-title: "Compilers 101 - The front end"
+title: "Compilers 101"
 date: 2021-09-28T22:58:02Z
 draft: false
+cover: "/img/compiler101/compilers.png"
+description: " "
 tags: ["reverse-engineering", "compilers"]
 categories: ["guide"]
 ---
