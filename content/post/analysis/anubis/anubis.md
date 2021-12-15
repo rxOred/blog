@@ -9,7 +9,7 @@ tags: ["reverse-engineering", "android", "malware"]
 
 # Samples 
 
-https://github.com/sk3ptre/AndroidMalware_2020/blob/master/anubis.zip
+[github](https://github.com/sk3ptre/AndroidMalware_2020/blob/master/anubis.zip)
 
 # Environment
 
@@ -148,7 +148,7 @@ here is the result.
 from that, we can conclude that this sample is obfuscated using ProGuard.
 
 Thing only makes things worse because, as far as im aware of, there is no way we can rename the 
-variables, classes and methods.
+variables, classes and methods without the mapping file.
 
 # Automated analysis with MobSf
 
@@ -169,7 +169,7 @@ which APIs, which classes makes use of requested permissions and so on.
 
 ![apis](/img/anubis/anubis_mobsfapi.png)
 
-However when i try to run a dynamic analysis, MobSF failed with few errors. 
+However when i try to run a dynamic analysis on the apk, MobSF failed with few errors. 
 
 # Dynamic analysis
 
@@ -177,6 +177,32 @@ first, im going to stop the emulator and restart it with following parameters
 
 `-show-kernel -tcpdump dump.cap`
 
-so we can take a look at network traffic later on, in case.
+so we can take a look at network traffic later on, in case. (I've also setup mitmproxy)
+
+![installing the malware](/img/anubis/anubis_installapk.png)
+
+running the sample, its asking to enable 'accessibility permissions'. And the user is forced to grant the permission. This enables application run in the background.
+
+![accessibility permissions](/img/anubis/anubis_accessibilities.png)
+
+Here's the network traffic.
+
+![network traffic](/img/anubis/anubis_requeststorandom.png)
+
+![request](/img/anubis/anubis_request.png)
+
+when granted the requested permission, the malware seemed to be deleted from the devic.
+However, its listed in the packages.
+
+```
+root@generic_x86_64:/ # pm list packages | grep slsa                           
+package:wocwvy.czyxoxmbauu.slsa
+root@generic_x86_64:/ # 
+```
+
+which means that it has only deleted the icon from the application launcher not 
+the app itself.
+
+# Diving deep
 
 
