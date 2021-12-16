@@ -412,8 +412,6 @@ then it gets an `InputStream` from the connection and reads data to `StringBuffe
                 this.str = SomeHttpClass.this.mo230d(this.str);
 ```
 
-
-
 ```java
 /* renamed from: wocwvy.czyxoxmbauu.slsa.a */
 public class BankingApps {

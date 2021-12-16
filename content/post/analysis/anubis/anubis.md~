@@ -393,25 +393,6 @@ inside the try block, it opens a connection to `https://twitter.com/qweqweqwe`.
 then it gets an `InputStream` from the connection and reads data to `StringBuffer stringBuffer` with the help of a 
 `BufferedReader reader`.
 
-```java
-                this.str = stringBuffer.toString().replace(" ", "");
-                this.str = SomeHttpClass.this.mo208a(this.str, "¿¿¿¿¿", "¿¿¿¿¿");
-                int i = 0;
-                while (true) {
-                    BankingApps aVar = SomeHttpClass.this.banking_apps;
-                    if (i >= BankingApps.f332s.length) {
-                        break;
-                    }
-                    String str2 = this.str;
-                    BankingApps aVar2 = SomeHttpClass.this.banking_apps;
-                    String str3 = BankingApps.f333t[i];
-                    BankingApps aVar3 = SomeHttpClass.this.banking_apps;
-                    this.str = str2.replace(str3, BankingApps.f332s[i]);
-                    i++;
-                }
-                this.str = SomeHttpClass.this.mo230d(this.str);
-```
-
 
 
 ```java
