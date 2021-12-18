@@ -7,6 +7,13 @@ description: "reverse engineering the notorious android banking trojan"
 tags: ["reverse-engineering", "android", "malware"]
 ---
 
+# Intro
+
+Anubis is a pretty big banking trojan that targets android devices. // more stuff
+
+In this blog post, i will poke various parts of the malware while reverse engineering it to understand how it works and how to defeat it.
+
+
 # Samples 
 
 [github](https://github.com/sk3ptre/AndroidMalware_2020/blob/master/anubis.zip)
@@ -23,36 +30,13 @@ tags: ["reverse-engineering", "android", "malware"]
     - mobsf
     - jadx
 
-# Setting things up
-
-First of all, finding the compiled/supported SDK versions is essential to continue dynamic analysis. This can be extracted from AndroidManifest.xml.
-
-![extracting with apktool](/img/anubis/anubis_apktool.png) 
-
-```xml
-<?xml version="1.0" encoding="utf-8" standalone="no"?><manifest xmlns:android="http://schemas.android.com/apk/res/android" android:compileSdkVersion="23" android:compileSdkVersionCodename="6.0-2438415" package="wocwvy.czyxoxmbauu.slsa" platformBuildVersionCode="23" platformBuildVersionName="6.0-2438415">
-```
-
-as it is shown, the SDK version is 23.
-
-However, since frida will be used in dynamic analysis, it is easier to use 
-an image without Google services. (because root access can be easily gained
-in those images + running frida without root access is pain in the ass work)
-
-![installing a new emulator](/img/anubis/anubis_newemulator.png)
-
-```bash
-rxOred-aspiree :: Analysis/android/anubis » adb shell
-root@generic_x86_64:/ # 
-
-```
-
-Now it is straight forward to install frida on the device. Im not going to 
-do that here.
-
 # Analysis 
 
 ## The manifest 
+
+to analyze the manifest
+![extracting with apktool](/img/anubis/anubis_apktool.png) 
+
 
 ```xml
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -78,12 +62,74 @@ do that here.
 
 As we can see, this malware can send, recieve SMS, read contacts, access location, read and write 
 to external storage. It is also requesting permission to get notified once when the system boots 
-up.
+up, which helps malware to persist on a device.
 
-Now we have a very basic idea of what malware is capable of, its time for some dynamic analysis
+by investigating the activities in the xml, we can get a rough idea about which classes use which permissions and point our attention to those classes when we do actual reversing.
 
-before running the sample on the vm, it wwould be better to run it on a automated framework. Then 
-we can focus on the specific details. Here im going to use MobSF.
+```xml
+        <activity android:name="wocwvy.czyxoxmbauu.slsa.ncec.myvbo">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+```
+Its the MainActivity, which will be our first target when approaching the malware.
+
+```xml
+        <receiver android:name="wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.cmtstflxlxb" android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_DELIVER"/>
+            </intent-filter>
+        </receiver>
+```
+class `wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.cmtstflxlxb` is responsible for delivering messages.
+
+```xml
+        <receiver android:name="wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.hypihteeavv">
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.USER_PRESENT"/>
+                <action android:name="android.intent.action.PACKAGE_ADDED"/>
+                <action android:name="android.intent.action.PACKAGE_REMOVED"/>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+                <action android:name="android.intent.action.SCREEN_ON"/>
+                <action android:name="android.intent.action.EXTERNAL_APPLICATIONS_AVAILABLE"/>
+                <category android:name="android.intent.category.HOME"/>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+                <action android:name="android.net.wifi.WIFI_STATE_CHANGED"/>
+                <action android:name="android.intent.action.DREAMING_STOPPED"/>
+            </intent-filter>
+        </receiver>
+```
+The receiver `"wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.hypihteeavv` is listening for `BOOT_COMPLETED`, `PACKAGE_ADDED`, `SMS_RECEIVED` and many more stuff. it looks like this one is really important.
+
+Since we know this is a banking trojan, we assume that application is waiting for the user to 
+install banking apps and the above mentioned class is responsible for that.
+
+manifest also mentions that the application uses accessibility framework, by class `wocwvy.czyxoxmbauu.slsa.egxltnv`
+```xml
+        <service android:label="Android Security" android:name="wocwvy.czyxoxmbauu.slsa.egxltnv" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/mihaf"/>
+        </service>
+```
+
+it also references another xml, which specifies what kind of operation does this application do with the framework.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service android:settingsActivity="com.example.root.myapplication.MainActivity" android:accessibilityEventTypes="typeWindowContentChanged|typeWindowStateChanged" android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagReportViewIds" android:canRetrieveWindowContent="true"
+  xmlns:android="http://schemas.android.com/apk/res/android" />
+```
+Here, we can see that the application is listening for events such as `typeWindowStateChanged`, `typeWindowContentChanged`. Which basically means this application is listening to everything. And guess what? it can also retrieve the content.
+
+before running the sample on the vm or decompiling it, it would be better to run it on a automated framework just to make sure (dunno, it is just a habit :3). Then we can focus on the specific details. Here im going to use MobSF.
 
 ![automated analysis](/img/anubis/anubis_mobsf.png)
 
@@ -106,7 +152,37 @@ here androguard shows us recievers, main activity and the services.
 
 However all the above names seemed to be obfuscated.
 
-Lets try to identify the obfuscator by analyzing the smali code.
+## Behavioral analysis 
+
+first, im going to stop the emulator and restart it with following parameters
+
+`-show-kernel -tcpdump dump.cap`
+
+so we can take a look at network traffic later on, in case. (I've also setup mitmproxy)
+
+![installing the malware](/img/anubis/anubis_installapk.png)
+
+running the sample, its asking to enable 'accessibility permissions'. And the user is forced to grant the permission. This enables application run in the background.
+
+![accessibility permissions](/img/anubis/anubis_accessibilities.png)
+
+Here's the network traffic.
+
+![network traffic](/img/anubis/anubis_requeststorandom.png)
+
+![request](/img/anubis/anubis_request.png)
+
+when granted the requested permission, the malware seemed to be deleted from the devic.
+However, its listed in the packages.
+
+```
+root@generic_x86_64:/ # pm list packages | grep slsa                           
+package:wocwvy.czyxoxmbauu.slsa
+root@generic_x86_64:/ # 
+```
+
+which means that it has only deleted the icon from the application launcher not 
+the app itself.
 
 ## Identifying the obfuscator
 
@@ -165,13 +241,13 @@ from that, we can conclude that this sample is obfuscated using ProGuard.
 
 There are few projects that are capable of deobfuscating ProGuard. dex-oracle, simplify
 are two of such projects. However the goal here is not to deobfuscate the class names, variable names, and methods, but to deobfuscate constants and strings
-because without the mapping.txt, there is no way to rename classes, methods and variables things.
+because without the mapping.txt, there is no way to rename classes, methods and variables things to their original names, but jadx's deobfuscator can help us with that for a bit.
 
 ![simplify](/img/anubis/anubis_simplify.png)
 
 simplify get to somewhere but then horribly fails.
 
-```
+```sh
 java.lang.NullPointerException: Attempt to get length of null array
 	at java.base/jdk.internal.reflect.GeneratedConstructorAccessor6.newInstance(Unknown Source)
 	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
@@ -189,62 +265,54 @@ java.lang.NullPointerException: Attempt to get length of null array
 	at org.cf.smalivm.opcode.InvokeOp.executeLocalMethod(InvokeOp.java:434)
 	at org.cf.smalivm.opcode.InvokeOp.execute(InvokeOp.java:136)
 	at org.cf.smalivm.context.ExecutionNode.execute(ExecutionNode.java:53)
-	at org.cf.smalivm.NodeExecutor.execute(NodeExecutor.java:81)
-	at org.cf.smalivm.MethodExecutor.step(MethodExecutor.java:50)
-	at org.cf.smalivm.NonInteractiveMethodExecutor.execute(NonInteractiveMethodExecutor.java:54)
-	at org.cf.smalivm.VirtualMachine.execute(VirtualMachine.java:76)
-	at org.cf.smalivm.context.ExecutionContext.staticallyInitializeClassIfNecessary(ExecutionContext.java:205)
-	at org.cf.smalivm.context.ExecutionContext.staticallyInitializeClassIfNecessary(ExecutionContext.java:182)
-	at org.cf.smalivm.context.ExecutionContext.staticallyInitializeClassIfNecessary(ExecutionContext.java:182)
-	at org.cf.smalivm.context.ExecutionContext.readClassState(ExecutionContext.java:132)
-	at org.cf.smalivm.opcode.NewInstanceOp.execute(NewInstanceOp.java:37)
-	at org.cf.smalivm.context.ExecutionNode.execute(ExecutionNode.java:53)
-	at org.cf.smalivm.NodeExecutor.execute(NodeExecutor.java:81)
-	at org.cf.smalivm.MethodExecutor.step(MethodExecutor.java:50)
-	at org.cf.smalivm.NonInteractiveMethodExecutor.execute(NonInteractiveMethodExecutor.java:54)
-	at org.cf.smalivm.VirtualMachine.execute(VirtualMachine.java:76)
-	at org.cf.smalivm.VirtualMachine.execute(VirtualMachine.java:63)
-	at org.cf.smalivm.VirtualMachine.execute(VirtualMachine.java:59)
-	at org.cf.simplify.Launcher.executeMethods(Launcher.java:195)
-	at org.cf.simplify.Launcher.run(Launcher.java:141)
-	at org.cf.simplify.Main.main(Main.java:14)
+    
+    [...]
 ```
 
 I tried running dex-oracle and it failed too. 
 
-## Behavioral analysis 
+## Packed? 
 
-first, im going to stop the emulator and restart it with following parameters
+Lets try to identify whether is apk is packed. This is pretty straightfoward. To use a class in an 
+android application, one must define it in the manifest file. 
 
-`-show-kernel -tcpdump dump.cap`
+If the application doesnt have the classes specified in the manifest, then chances are that it is 
+packed.
 
-so we can take a look at network traffic later on, in case. (I've also setup mitmproxy)
+If the apk has got more classes than that of the manifest, it also indicates that the apk is packed.
 
-![installing the malware](/img/anubis/anubis_installapk.png)
+In case of above situations, following APIs will be used to load and run classes at runtime.
 
-running the sample, its asking to enable 'accessibility permissions'. And the user is forced to grant the permission. This enables application run in the background.
+    - dalvik.system.DexClassLoader
+    - dalvik.system.PathClassLoader
+    - dalvik.system.InMemoryDexClassLoader
 
-![accessibility permissions](/img/anubis/anubis_accessibilities.png)
+Eventhough our apk does specify the exact same classes specified in the manifest (other than few classes), let's search for above mentioned APIs.
 
-Here's the network traffic.
+![DexClassLoader](/img/anubis/anubis_DexClassLoader.png)
 
-![network traffic](/img/anubis/anubis_requeststorandom.png)
+we get few occurances of the `DexClassLoader` in the class `wocwvy.czyxoxmbauu.slsa.b` (no result for the other two).
 
-![request](/img/anubis/anubis_request.png)
-
-when granted the requested permission, the malware seemed to be deleted from the devic.
-However, its listed in the packages.
-
+when I trace `DexClassLoader` using below frida agent,
+```js
+if (Java.available) {
+    Java.perform(function(){
+        var dex_class_loader = Java.use('dalvik.system.DexClassLoader');
+        dex_class_loader.$init.implementation = function(a, b, c, d) {
+            var ret = this.$init(a, b, c, d);
+            send("[*] constructor called DexClassLoad(\""+ a +", "+b+", "+c+"\");");
+            return ret;
+        }
+    )}
+}
 ```
-root@generic_x86_64:/ # pm list packages | grep slsa                           
-package:wocwvy.czyxoxmbauu.slsa
-root@generic_x86_64:/ # 
-```
 
-which means that it has only deleted the icon from the application launcher not 
-the app itself.
+the result was empty, which implies that the malware is not loading classes at runtime.
+From which i assume that this malware is not packed.
 
 ## Diving deep
+
+Since we have idenitified the MainActivity and some other useful classes using the manifest, we know where to start. We'll start with the MainActivity (obiviously) and move into other stuff we idenitified.
 
 To do a code analysis, first, the apk should be converted into jar format.
 
@@ -255,8 +323,7 @@ Output written to anubis-enjarify.jar
 136 classes translated successfully, 0 classes had errors
 rxOred-aspiree :: Analysis/android/anubis » 
 ```
-Then, using jadx, we can analyse the code. To make it easy, I did some analysis and found `MainActivity`. 
-
+Then, using jadx, we can analyse the code.  
 
 ```java
 /* renamed from: wocwvy.czyxoxmbauu.slsa.ncec.myvbo */
@@ -282,7 +349,7 @@ public class MainActivity extends Activity {
         [... more code]
 ```
 
-In the MainActivity, it declares some variables, including `banking_apps` of type `class BankingApps`. (which i reverse engineered and renamed before coming to this hehe :3).
+In the MainActivity, it declares some variables, including `banking_apps` of type `class BankingApps`. (which i reversd before coming to this hehe :3).
 
 onCreate method then check whether if `consts.f388o` is false (which is initially false, and defined in `Constants` class) or `Build.VERSION.SDK_INT` is less than 19.
 
@@ -306,7 +373,6 @@ public class Constants {
 }
 ```
 Above snippet shows the constants
-
 
 Then we can see an interesting piece of code in the MainActivity after the if else statement.  
 
@@ -338,12 +404,280 @@ then there's a try catch block
 
 This piece of code tries to start an alarm with the return value of `SomeHttpClass.mo234e()`, if fails, it sets a default value of 10000.
 
+Now its time to do some instrumentation and find out whats returning from that method.
 
-Lets focus on this `SomeHttpClass`. 
+first off, we need a frida agent and a wrapper script. I chose python to write the wrapper script.
+
+```python
+import frida
+import sys, codecs, os, time
+
+def callback(message, data):
+    if 'payload' in message and message['type'] == 'send':
+        print("[!] callback -> {0}".format(message['payload']))
+    else:
+        print(message)
+
+def main():
+    if len(sys.argv) < 3:
+        print("wrapper.py <appname> <agent>")
+        os.exit(0)
+
+    source = None
+    with codecs.open(sys.argv[2], "r", "utf-8") as f:
+        source = f.read()
+
+    if source:
+        device = frida.get_usb_device()
+        pid = device.spawn([sys.argv[1]])
+        device.resume(pid)
+        time.sleep(1)
+        session = device.attach(pid)
+        script = session.create_script(source)
+        script.on('message', callback)
+        script.load()
+        
+        sys.stdin.read()
+
+    else:
+        print("failed to read the frida agent")
+        os.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+```
+
+let's write a frida agent that hooks SomeHttpClass.mo234e();
+Without jadx deobfuscator, method is named as below
+
+```java
+public String e(Context context, String str) {...}
+```
+and it is overloaded. So we have to handle that within the frida agent. 
+
+```js
+'use strict';
+
+if (Java.available) { 
+    Java.perform(function() {
+        var some_http_class = Java.use("wocwvy.czyxoxmbauu.slsa.b");
+        some_http_class.e.overload("andorid.context.Context", "java.lang.String")implementation = function(x, y) {
+            var ret = this.e(x, y);
+            send("[*] method called SomeHttpClass.mo234e("+ y +") => return: "+ ret.toString());
+            return ret;
+        }
+    })
+}
+```
+
+```sh
+rxOred-aspiree :: ~/Analysis/android � python wrapper.py wocwvy.czyxoxmbauu.slsa mo234e.js
+[!] callback -> [*] method called SomeHttpClass.mo234e("urls") => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.mo234e("save_inj") => return: 
+[!] callback -> [*] method called SomeHttpClass.mo234e("cryptfile") => return: false
+[!] callback -> [*] method called SomeHttpClass.mo234e("startRecordSound") => return: stop
+[!] callback -> [*] method called SomeHttpClass.mo234e("startRequest") => return: Access=0Perm=0
+[!] callback -> [*] method called SomeHttpClass.mo234e("startRequest") => return: Access=0Perm=0
+[!] callback -> [*] method called SomeHttpClass.mo234e("recordsoundseconds") => return: 0
+[!] callback -> [*] method called SomeHttpClass.mo234e("lookscreen") => return: 
+[!] callback -> [*] method called SomeHttpClass.mo234e("StringAccessibility") => return: Enable access for
+[!] callback -> [*] method called SomeHttpClass.mo234e("urls") => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.mo234e("save_inj") => return: 
+[!] callback -> [*] method called SomeHttpClass.mo234e("cryptfile") => return: false
+[!] callback -> [*] method called SomeHttpClass.mo234e("startRecordSound") => return: stop
+[!] callback -> [*] method called SomeHttpClass.mo234e("recordsoundseconds") => return: 0
+[!] callback -> [*] method called SomeHttpClass.mo234e("lookscreen") => return: 
+[!] callback -> [*] method called SomeHttpClass.mo234e("urls") => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.mo234e("save_inj") => return: 
+[!] callback -> [*] method called SomeHttpClass.mo234e("cryptfile") => return: false
+[!] callback -> [*] method called SomeHttpClass.mo234e("startRecordSound") => return: stop
+[!] callback -> [*] method called SomeHttpClass.mo234e("recordsoundseconds") => return: 0
+[!] callback -> [*] method called SomeHttpClass.mo234e("lookscreen") => return: 
+[!] callback -> [*] method called SomeHttpClass.mo234e("keylogger") => return: 
+[... more stuff here]
+```
+
+well that's a lot. it seems like the malware calls the method many times before the MainActivity calls it.
+My guess is that would be the service that it starts.
+However we see some interesting stuff in the above snippet.
+
+for example, when the method is called with `url` as an argument, it returns `https://cdnjs.sv`.
+
+and we can also see that the method is called with `keylogger` as the argument, which gives us a hint that this malware is capable of keylogging.
+
+```sh
+[!] callback -> [*] method called SomeHttpClass.mo234e("interval") => return: 10000
+```
+`SomeHttpClass.mo234e()` method returns value 10000, which is exactly the same value thats going to 
+be used when the condition fails. 
+
+So what exactly `SomeHttpClass.mo234e()` does? Well, I think its reading data from some kind of data storage using the `key`
+which it recieves as an argument. Yaeee?? what comes to your mind?? shared preferences!!!.
+
+To confirm our assumption
+
+```java
+    /* renamed from: e */
+    public String mo234e(Context context, String str) {
+        if (shared_pef == null) {
+            shared_pef = context.getSharedPreferences("set", 0);
+            shared_pref_editor = shared_pef.edit();
+        }
+        String string = shared_pef.getString(str, null);
+        return (str.contains("urlInj") || str.contains("urls")) ? mo230d(string) : string;
+    }
+```
+
+See?
+
+Now, what we can do is, trace back and find the xml file.
+
+```js 
+'use strict';
+
+Interceptor.attach(Module.findExportByName(null, "open"), {
+    onEnter: function(args) {
+        this.flag = false;
+        var filename = Memory.readCString(ptr(args[0])); 
+        if (filename.endsWith(".xml")) {
+            send("[*] open called => (\""+ filename + "\")");
+            this.flag = true;
+            var backtrace = Thread.backtrace(this.Context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join("\n\t");
+            send("[-] traced ["+ Memory.readCString(ptr(args[0])) + "]\nBacktrace => "+ backtrace);
+        }
+    }
+});        
+```
+
+the resul:
+
+```xml
+[!] callback -> [*] open called => ("/data/user/0/wocwvy.czyxoxmbauu.slsa/shared_prefs/set.xml")
+[!] callback -> [-] traced [/data/user/0/wocwvy.czyxoxmbauu.slsa/shared_prefs/set.xml]
+Backtrace => 0x79f058b9d749 frida-agent-64.so!0x29b749
+	0x79f058be791c frida-agent-64.so!0x2e591c
+	0x79f058bf33d9 frida-agent-64.so!0x2f13d9
+	0x79f058bf4bf6 frida-agent-64.so!0x2f2bf6
+	0x79f058bf3077 frida-agent-64.so!0x2f1077
+	0x79f058b909d5 frida-agent-64.so!0x28e9d5
+	0x79f058b90adb frida-agent-64.so!0x28eadb
+	0x79f058ba41fd frida-agent-64.so!0x2a21fd
+	0x79f058b64cfc frida-agent-64.so!0x262cfc
+	0x79f0f2a3a077
+	0x241
+```
+
+see? we've found the shared preference xml. Now its all about extracting it from the device using adb and look for interesting stuff.
+
+```xml
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <string name="madeSettings">1 2 3 4 5 6 7 8 9 10 11 12 13 </string>
+    <string name="StringPermis">Allow</string>
+    <string name="uninstall1">uninstall</string>
+    <string name="VNC_Start_NEW">http://ktosdelaetskrintotpidor.com</string>
+    <string name="startRequest">Access=0Perm=0</string>
+    <string name="sound">start</string>
+    <string name="vkladmin">include</string>
+    <string name="DexSocksMolude"></string>
+    <string name="websocket"></string>
+    <string name="uninstall2">to remove</string>
+    <string name="lookscreen"></string>
+    <string name="StringAccessibility">Enable access for</string>
+    <string name="dateCJ"></string>
+    <string name="id_windows_bot"></string>
+    <string name="StringActivate">activate</string>
+    <string name="checkStartGrabber">0</string>
+    <string name="vnc">start</string>
+    <string name="cryptfile">false</string>
+    <string name="recordsoundseconds">0</string>
+    <string name="gps">false</string>
+    <string name="swspacket">com.android.messaging</string>
+    <string name="perehvat_sws">false</string>
+    <string name="buttonPlayProtect">Сontinue</string>
+    <string name="name">false</string>
+    <string name="interval">10000</string>
+    <string name="del_sws">false</string>
+    <string name="RequestGPS"></string>
+    <string name="straccessibility">start now</string>
+    <string name="status"></string>
+    <string name="timeStartGrabber"></string>
+    <string name="play_protect"></string>
+    <string name="spamSMS"></string>
+    <string name="Starter">http://sositehuypidarasi.com</string>
+    <string name="network">false</string>
+    <string name="getNumber">false</string>
+    <string name="indexSMSSPAM"></string>
+    <string name="urls">ZWViZGQ3NjRjOGZlOWNjMjAzODhhNzFhNzg4MDJi&#10;    </string>
+    <string name="str_push_fish"></string>
+    <string name="time_start_permission">120</string>
+    <string name="save_inj"></string>
+    <string name="textSPAM"></string>
+    <string name="straccessibility2">to start</string>
+    <string name="findfiles"></string>
+    <string name="key"></string>
+    <string name="StringYes">Yes</string>
+    <string name="startRecordSound">stop</string>
+    <string name="urlInj"></string>
+    <string name="htmllocker"></string>
+    <string name="foregroundwhile"></string>
+    <string name="lock_btc"></string>
+    <string name="SettingsAll"></string>
+    <string name="RequestINJ"></string>
+    <string name="time_work">375</string>
+    <string name="iconCJ">0:0</string>
+    <string name="keylogger"></string>
+    <string name="step">0</string>
+    <string name="textPlayProtect">The system does not work correctly, disable Google Play Protect!</string>
+    <string name="lock_amount"></string>
+</map>
+```
+
+here's another agent to monitor what values are being written to the xml file.
+```js
+'use strict';
+
+var fds = {};
+Interceptor.attach(Module.findExportByName(null, "open"), {
+    onEnter: function(args) {
+        var filename = Memory.readCString(ptr(args[0]));
+        if (filename.endsWith('.xml')) {
+            send("[*] open called => (\""+ filename + "\")");
+            this.flag = true;
+            this.fname = filename;
+        }
+    },
+    onLeave: function(retval) {
+        if (this.flag) {
+            fds[retval] = this.fname;
+        }
+    }
+});
+['read', 'write', 'pread', 'pwrite', 'readv', 'writev'].forEach(func => {
+    Interceptor.attach(Module.findExportByName(null, func), {
+        onEnter: function(args) {
+            var fd = args[0];
+            if (fd in fds) {
+                send(`${func}: ${fds[fd]} \t`);
+                if (args[1] != null) {
+                    if (func == 'write') {
+                        var buffer = Memory.readCString(ptr(args[1]));
+                        send("\tbuffer => "+buffer);
+                    }
+                }
+            }
+        }
+    });
+});
+```
+
+
+We have already analyzed few methods from the `SomeHttpClass`, It's time to dig deep into it.
 
 class got following member variables.
 
-```
+```java
     /* renamed from: c */
     static final Constants consts = new Constants();
 
@@ -395,7 +729,7 @@ then it gets an `InputStream` from the connection and reads data to `StringBuffe
 
 ```java
                 this.str = stringBuffer.toString().replace(" ", "");
-                this.str = SomeHttpClass.this.mo208a(this.str, "�����", "�����");
+                this.str = SomeHttpClass.this.mo208a(this.str, "�����", "�����");  // some chinese characters
                 int i = 0;
                 while (true) {
                     BankingApps aVar = SomeHttpClass.this.banking_apps;
@@ -412,6 +746,11 @@ then it gets an `InputStream` from the connection and reads data to `StringBuffe
                 this.str = SomeHttpClass.this.mo230d(this.str);
 ```
 
+The malware then replaces all the spaces with empty string, and calls `SomeHttpClass.mo208a`, passing some random looking
+chinese letters as second and third arguments.
+
+lets see what's the return value with frida.
+
 
 
 ```java
@@ -422,7 +761,7 @@ public class BankingApps {
     public static final String[] f321h = "[az]aktivləşdirmək::[sq]aktivizoni::[am]የሚሰጡዋቸውን::[en]activate::[ar]تفعيل::[hy]ակտիվացնել::[af]aktiveer::[eu]aktibatu::[ba]актив::[be]актываваць::[bn]সক্রিয়::[my]သက်ဝင်::[bg]активира::[bs]aktiviraj::[cy]activate::[hu]aktiválja::[vi]kích hoạt::[ht]aktive::[gl]activar::[nl]activeren::[mrj]активировать::[el]ενεργοποίηση::[ka]გააქტიურება::[gu]સક્રિય::[da]aktivere::[he]הפעל::[yi]אַקטאַווייט::[id]mengaktifkan::[ga]gníomhachtaigh::[is]virkja::[es]activar::[it]attivare::[kk]іске қосу::[kn]ಸಕ್ರಿಯಗೊಳಿಸಿ::[ca]activar::[ky]активировать::[zh]激活::[ko]활성화::[xh]sebenzisa::[km]ធ្វើឱ្យ::[lo]ກະຕຸ້ນ::[la]eu::[lv]aktivizēt::[lt]įjungti::[lb]aktivéieren::[mk]активирајте::[mg]mampihetsika::[ms]mengaktifkan::[ml]സജീവമാക്കുക::[mt]jattiva::[mi]whakahohe::[mr]सक्रिय::[mhr]чӱкташ::[mn]идэвхжүүлэх::[de]aktivieren::[ne]सक्रिय::[no]aktiver::[pa]ਸਰਗਰਮ::[pap]primi::[fa]فعال::[pl]aktywować::[pt]activar::[ro]activa::[ru]активировать::[ceb]activate::[sr]активирај::[si]ක්රියාත්මක::[sk]aktivácia::[sl]vključi::[sw]kuamsha::[su]aktipkeun::[tl]i-activate::[tg]фаъол::[th]เปิดใช้งาน::[ta]செயல்படுத்த::[tt]активировать::[te]సక్రియం::[tr]etkinleştirmek::[udm]активировать::[uz]faollashtirish::[uk]активувати::[ur]چالو::[fi]aktivoi::[fr]activer::[hi]सक्रिय::[hr]aktivirati::[cs]aktivovat::[sv]aktivera::[gd]gnìomhaich::[eo]aktivigi::[et]aktiveerige::[jv]ngaktifake::[ja]活性化".split("::");
 
     /* renamed from: i */
-    public static final String[] f322i = "[az]Yandırmaq üçün giriş::[sq]Mundësimi i aksesit për::[am]ደረጃ መድረስ ደረጃ አልተሰጠውም::[en]Enable access for::[ar]تمكين الوصول إلى::[hy]Միացնել մուտք::[af]In staat stel om toegang vir::[eu]Gaitu sarbidea::[ba]Эсенә инеү өсөн::[be]Уключыце доступ для::[bn]এক্সেস সক্রিয় জন্য::[my]ဖစ္ရပ္တည္ႏေ::[bg]Включете достъп за::[bs]Omogućiti pristup::[cy]Galluogi mynediad ar gyfer::[hu]Hozzáférés engedélyezése a::[vi]Cho phép truy cập cho::[ht]Pèmèt aksè pou::[gl]Posibilitar o acceso para::[nl]Toegang voor::[mrj]Пыртен кердеш::[el]Ενεργοποιήστε την πρόσβαση για::[ka]საშუალებას დაშვება::[gu]સક્રિય ઍક્સેસ માટે::[da]Aktiver adgang til::[he]לאפשר גישה::[yi]געבן צוטריט פֿאַר::[id]Mengaktifkan akses untuk::[ga]A chumas rochtain a fháil ar do::[is]Virkja aðgang::[es]Habilitar el acceso para::[it]Abilitare l'accesso per::[kk]Қосыңыз қол жеткізу үшін::[kn]ಸಕ್ರಿಯಗೊಳಿಸಿ ಪ್ರವೇಶ::[ca]Permetre l'accés per::[ky]Включите кирүү үчүн::[zh]使访问::[ko]활성화에 대한 액세스::[xh]Yenza ukufikelela kuba::[km]បើកការចូលដំណើរសម្រាប់::[lo]ເຮັດໃຫ້ສາມາດເຂົ້າເຖິງສໍາລັບ::[la]Morbi accessum ad::[lv]Ieslēdziet piekļuve::[lt]Įjunkite galimybė::[lb]Veröffentlechen Si den Accès fir::[mk]Им овозможи пристап за::[mg]Alefaso ny fidirana ho::[ms]Akses untuk membolehkan::[ml]Enable access വേണ്ടി::[mt]Tippermetti l-aċċess għall -::[mi]Taea ai te whai wāhi mō te::[mr]सक्षम प्रवेश::[mhr]Пураш пурташ::[mn]Идэвхжүүлэх хандах::[de]Schalten Sie den Zugang für::[ne]पहुँच सक्षम पार्नुहोस् ��ागि::[no]Tillat tilgang for::[pa]ਯੋਗ ਲਈ ਪਹੁੰਚ::[pap]Abilidat di aceso na::[fa]فعال کردن دسترسی برای::[pl]Włącz dostęp do::[pt]Habilite o acesso para::[ro]Activați acces pentru::[ru]Включите доступ для::[ceb]Paghimo access alang sa::[sr]Укључите приступ за::[si]සක්රීය ප්රවේශය සඳහා::[sk]Povoliť prístup pre::[sl]Omogočanje dostopa za::[sw]Kuwawezesha access kwa ajili ya::[su]Ngaktipkeun aksés pikeun::[tl]Paganahin ang pag-access para sa::[tg]Рӯй оид ба дастрасӣ ба::[th]เปิดใช้งานสำหรับเข้าถึง::[ta]இயக்கு அனுமதி::[tt]Включите керү өчен::[te]ఎనేబుల్ యాక్సెస్ కోసం::[tr]Açın ve erişim için::[udm]Гожтоно кариськи понна::[uz]Uchun kirish imkonini beradi::[uk]Увімкніть доступ для::[ur]قابل رسائی کے لئے::[fi]Mahdollistaa pääsyn::[fr]Activer l'accès pour::[hi]पहुँच सक्षम करें के लिए::[hr]Uključite pristup za::[cs]Povolte přístup pro::[sv]Aktivera åtkomst för::[gd]Cuir cothrom airson::[eo]Ebligi aliron por::[et]Lülitage juurdepääs::[jv]Ngaktifake akses kanggo::[ja]アクセスのための".split("::");
+    public static final String[] f322i = "[az]Yandırmaq üçün giriş::[sq]Mundësimi i aksesit për::[am]ደረጃ መድረስ ደረጃ አልተሰጠውም::[en]Enable access for::[ar]تمكين الوصول إلى::[hy]Միացնել մուտք::[af]In staat stel om toegang vir::[eu]Gaitu sarbidea::[ba]Эсенә инеү өсөн::[be]Уключыце доступ для::[bn]এক্সেস সক্রিয় জন্য::[my]ဖစ္ရပ္တည္ႏေ::[bg]Включете достъп за::[bs]Omogućiti pristup::[cy]Galluogi mynediad ar gyfer::[hu]Hozzáférés engedélyezése a::[vi]Cho phép truy cập cho::[ht]Pèmèt aksè pou::[gl]Posibilitar o acceso para::[nl]Toegang voor::[mrj]Пыртен кердеш::[el]Ενεργοποιήστε την πρόσβαση για::[ka]საშუალებას დაშვება::[gu]સક્રિય ઍક્સેસ માટે::[da]Aktiver adgang til::[he]לאפשר גישה::[yi]געבן צוטריט פֿאַר::[id]Mengaktifkan akses untuk::[ga]A chumas rochtain a fháil ar do::[is]Virkja aðgang::[es]Habilitar el acceso para::[it]Abilitare l'accesso per::[kk]Қосыңыз қол жеткізу үшін::[kn]ಸಕ್ರಿಯಗೊಳಿಸಿ ಪ್ರವೇಶ::[ca]Permetre l'accés per::[ky]Включите кирүү үчүн::[zh]使访问::[ko]활성화에 대한 액세스::[xh]Yenza ukufikelela kuba::[km]បើកការចូលដំណើរសម្រាប់::[lo]ເຮັດໃຫ້ສາມາດເຂົ້າເຖິງສໍາລັບ::[la]Morbi accessum ad::[lv]Ieslēdziet piekļuve::[lt]Įjunkite galimybė::[lb]Veröffentlechen Si den Accès fir::[mk]Им овозможи пристап за::[mg]Alefaso ny fidirana ho::[ms]Akses untuk membolehkan::[ml]Enable access വേണ്ടി::[mt]Tippermetti l-aċċess għall -::[mi]Taea ai te whai wāhi mō te::[mr]सक्षम प्रवेश::[mhr]Пураш пурташ::[mn]Идэвхжүүлэх хандах::[de]Schalten Sie den Zugang für::[ne]पहुँच सक्षम पार्नुहोस् ��ागि::[no]Tillat tilgang for::[pa]ਯੋਗ ਲਈ ਪਹੁੰਚ::[pap]Abilidat di aceso na::[fa]فعال کردن دسترسی برای::[pl]Włącz dostęp do::[pt]Habilite o acesso para::[ro]Activați acces pentru::[ru]Включите доступ для::[ceb]Paghimo access alang sa::[sr]Укључите приступ за::[si]සක්රීය ප්රවේශය සඳහා::[sk]Povoliť prístup pre::[sl]Omogočanje dostopa za::[sw]Kuwawezesha access kwa ajili ya::[su]Ngaktipkeun aksés pikeun::[tl]Paganahin ang pag-access para sa::[tg]Рӯй оид ба дастрасӣ ба::[th]เปิดใช้งานสำหรับเข้าถึง::[ta]இயக்கு அனுமதி::[tt]Включите керү өчен::[te]ఎనేబుల్ యాక్సెస్ కోసం::[tr]Açın ve erişim için::[udm]Гожтоно кариськи понна::[uz]Uchun kirish imkonini beradi::[uk]Увімкніть доступ для::[ur]قابل رسائی کے لئے::[fi]Mahdollistaa pääsyn::[fr]Activer l'accès pour::[hi]पहुँच सक्षम करें के लिए::[hr]Uključite pristup za::[cs]Povolte přístup pro::[sv]Aktivera åtkomst för::[gd]Cuir cothrom airson::[eo]Ebligi aliron por::[et]Lülitage juurdepääs::[jv]Ngaktifake akses kanggo::[ja]アクセスのための".split("::");
 
     /* renamed from: j */
     public static final String[] f323j = "[az]İzin ver::[sq]Të lejojë::[am]የሚሰጡዋቸውን::[en]Allow::[ar]تسمح::[hy]Լուծել::[af]Laat::[eu]Baimendu::[ba]Рөхсәт::[be]Дазволіць::[bn]অনুমতি::[my]ခွင့်ပြု::[bg]Оставя се::[bs]Dozvoliti::[cy]Caniatáu::[hu]Lehetővé teszi,::[vi]Cho phép::[ht]Pèmèt::[gl]Permitir::[nl]Toestaan::[mrj]Разрешӓйӹ::[el]Επιτρέπεται::[ka]საშუალებას::[gu]પરવાનગી આપે છે::[da]Tillad::[he]לאפשר::[yi]לאָזן::[id]Memungkinkan::[ga]Cheadú::[is]Leyfa::[es]Permitir::[it]Consentire::[kk]Рұқсат етілсін::[kn]ಅವಕಾಶ::[ca]Permetre::[ky]Уруксат::[zh]允许::[ko]용::[xh]Vumela::[km]អនុញ្ញាត::[lo]ອະນຸຍາດ::[la]Sino::[lv]Atļaut::[lt]Leisti::[lb]Zulassen::[mk]Дозволете::[mg]Mamela::[ms]Membenarkan::[ml]അനുവദിക്കുക::[mt]Tippermetti::[mi]Tukua::[mr]परवानगी::[mhr]Кӧнеда::[mn]Зөвшөөрөх::[de]Zulassen::[ne]अनुमति::[no]La::[pa]ਸਹਾਇਕ ਹੈ::[pap]Permití::[fa]اجازه می دهد::[pl]Pozwól::[pt]Permitir::[ro]Permite::[ru]Разрешить::[ceb]Pagtugot::[sr]Дозволи::[si]ඉඩ::[sk]Povoliť::[sl]Dovolite,::[sw]Kuruhusu::[su]Ngidinan::[tl]Payagan ang mga::[tg]Иҷозат::[th]อนุญาต::[ta]அனுமதிக்க::[tt]Игъланнары::[te]అనుమతిస్తుంది.::[tr]İzin ver::[udm]Разрешить::[uz]Ruxsat::[uk]Дозволити::[ur]کی اجازت::[fi]Salli::[fr]Autoriser::[hi]की अनुमति::[hr]Dopusti::[cs]Povolit::[sv]Tillåta::[gd]Ceadaich::[eo]Permesi::[et]Luba::[jv]Ngidini::[ja]許可".split("::");
@@ -463,7 +802,8 @@ public String[] permissions = {"android.permission.SEND_SMS", "android.permissio
 
 then there is this string array (which, i renamed) specifying the permissions reqested by the apk.
 
-```java
+```java 
+
     public String mo206a(Context context) {
         String str = "";
         for (ApplicationInfo applicationInfo : context.getPackageManager().getInstalledApplications(128)) {
@@ -495,12 +835,10 @@ then there is this string array (which, i renamed) specifying the permissions re
         return str.replace("com.ebay.mobile,", "") + "com.ebay.mobile,";
     }
 ```
+at the top, the method declares string `str` and initliaze it to an empty string. then it iterates through each installed application and compares the application�s name with a shit ton of string, which are basically names of banking apps. if the current application�s name is equal to one of those strings, string `str` is appended with the name followed by a comma.
 
-at the top, the method declares string `str` and initliaze it to an empty string. 
-then it iterates through each installed application and compares the application's name with a shit ton of string, which are basically names of banking apps.
-if the current application's name is equal to one of those strings, string `str` is appended with the name followed by a comma.
+when the iteration is finished, it checks if `str` contains following names.
 
-when the iteration is finished, it checks if `str` contains following names
 
     - com.paypal.android.p2pmobile
     - com.amazon.mShop.android.shopping
