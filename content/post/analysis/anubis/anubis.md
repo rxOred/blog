@@ -672,12 +672,15 @@ Interceptor.attach(Module.findExportByName(null, "open"), {
 });
 ```
 
+However it does not explicitly specify what are the new values written to the file. Instead, it prints the whole buffer. In this case, the buffer is
+the xml.
 
-We have already analyzed few methods from the `SomeHttpClass`, It's time to dig deep into it.
+Since we have already analyzed few methods from the `SomeHttpClass`, It's time to dig deep into it.
 
 class got following member variables.
 
 ```java
+
     /* renamed from: c */
     static final Constants consts = new Constants();
 
@@ -749,9 +752,49 @@ then it gets an `InputStream` from the connection and reads data to `StringBuffe
 The malware then replaces all the spaces with empty string, and calls `SomeHttpClass.mo208a`, passing some random looking
 chinese letters as second and third arguments.
 
-lets see what's the return value with frida.
+lets see what's the return value with frida. again, this shit is overloaded too. (pretty common in obfuscated java code.)
+
+```js
+'use strict';
+
+if (Java.available) {
+    Java.perform(function() {
+        var some_http_class = Java.use("wocwvy.czyxoxmbauu.slsa.b");
+        some_http_class.a.overload("java.lang.String", "java.lang.String", "java.lang.String").implementation = function(x, y, z) { 
+            send("[*] method called SomeHttpClass.mo208a(\""+ x +"\", " +y+ "\", "+z+"\")");
+            var ret = this.a(x, y, z); 
+            if (ret != undefined) {
+                send(" => return: "+ ret);
+                return ret;
+            }
+            else {
+                send(" => return: undefined");
+                return Java.use('java.lang.String').$new("undefined");
+            }       
+        }
+    });
+}
+```
+when ran the above agent, 
+
+```sh
+[!] callback -> [*] method called SomeHttpClass.mo208a("null", <tag>", </tag>")
+[!] callback ->  => return: undefined
+```
+we can see that the method is called by with some unexpected arguments. And this is even before the malware makes the request to twitter url.
+If you wait bit longer (until the malware makes that request), we can see the arguments we expected.
+
+I cant drop the result here because first argument is too long. which makes sense because malware is using the response html as the first argument.
+Unfortunately, the return value we get is, "" :3.
+
+```
+[!] callback ->  => return:
+```
+
+However we can try to understand what `SomeHttpClass.mo208a` is doing with the input either using frida or by intercepting the request and writing a response that suite our needs.
 
 
+Lets get an idea of how this malware gets banking applications.
 
 ```java
 /* renamed from: wocwvy.czyxoxmbauu.slsa.a */
