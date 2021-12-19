@@ -294,7 +294,8 @@ Eventhough our apk does specify the exact same classes specified in the manifest
 we get few occurances of the `DexClassLoader` in the class `wocwvy.czyxoxmbauu.slsa.b` (no result for the other two).
 
 when I trace `DexClassLoader` using below frida agent,
-```js
+
+```javascript
 if (Java.available) {
     Java.perform(function(){
         var dex_class_loader = Java.use('dalvik.system.DexClassLoader');
@@ -456,7 +457,7 @@ public String e(Context context, String str) {...}
 ```
 and it is overloaded. So we have to handle that within the frida agent. 
 
-```js
+```javascript
 'use strict';
 
 if (Java.available) { 
@@ -533,7 +534,7 @@ See?
 
 Now, what we can do is, trace back and find the xml file.
 
-```js 
+```javascript 
 'use strict';
 
 Interceptor.attach(Module.findExportByName(null, "open"), {
@@ -635,7 +636,7 @@ see? we've found the shared preference xml. Now its all about extracting it from
 ```
 
 here's another agent to monitor what values are being written to the xml file.
-```js
+```javascript
 'use strict';
 
 var fds = {};
@@ -754,7 +755,7 @@ chinese letters as second and third arguments.
 
 lets see what's the return value with frida. again, this shit is overloaded too. (pretty common in obfuscated java code.)
 
-```js
+```javascript
 'use strict';
 
 if (Java.available) {
@@ -792,6 +793,42 @@ Unfortunately, the return value we get is, "" :3.
 ```
 
 However we can try to understand what `SomeHttpClass.mo208a` is doing with the input either using frida or by intercepting the request and writing a response that suite our needs.
+
+```javascript
+'use strict';
+
+if (Java.available) {
+    Java.perform(function() {
+        var java_string = Java.use("java.lang.String");
+        var some_http_class = Java.use("wocwvy.czyxoxmbauu.slsa.b");
+        some_http_class.a.overload("java.lang.String", "java.lang.String", "java.lang.String").implementation = function(x, y, z) { 
+            send("[*] method called SomeHttpClass.mo208a(\""+ x +"\", " +y+ "\", "+z+"\")");
+            send("[*] calling method with 123456789abcdefhijklmnoqpuvwz");
+            var ret = this.a(java_string.$new("123456789abcdefhijklmnoqpuvwz"), java_string.$new('123456'), java_string.$new('noqpuvwz')); 
+            if (ret != undefined) {
+                send(" => return: "+ ret);
+                return ret;
+            }
+            else {
+                send(" => return: undefined");
+                return Java.use('java.lang.String').$new("undefined");
+            }       
+        }
+    });
+}
+```
+
+The above agent calls the intended method with various strings as arguments.
+
+result:
+```sh
+[!] callback -> [*] method called SomeHttpClass.mo208a("null", <tag>", </tag>")
+[!] callback -> [*] calling method with 123456789abcdefhijklmnoqpuvwz
+[!] callback ->  => return: 789abcdefhijklm
+```
+
+So it looks like function is taking three arguments and returning the string between the string specified in the second argument and the third.
+
 
 
 Lets get an idea of how this malware gets banking applications.
