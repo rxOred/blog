@@ -391,7 +391,7 @@ then there's a try catch block
 ```java
         try {
             SomeHttpClass bVar = this.cls;
-            SomeHttpClass.m231a(this, "startAlarm", (long) Integer.parseInt(this.cls.mo234e(this, "Interval")));
+            SomeHttpClass.m231a(this, "startAlarm", (long) Integer.parseInt(this.cls.getSharedPreference(this, "Interval")));
         } catch (Exception e) {
             SomeHttpClass bVar2 = this.cls;
             SomeHttpClass.m231a(this, "startAlarm", 10000);
@@ -403,7 +403,7 @@ then there's a try catch block
 }
 ```
 
-This piece of code tries to start an alarm with the return value of `SomeHttpClass.mo234e()`, if fails, it sets a default value of 10000.
+This piece of code tries to start an alarm with the return value of `SomeHttpClass.getSharedPreference()`, if fails, it sets a default value of 10000.
 
 Now its time to do some instrumentation and find out whats returning from that method.
 
@@ -449,7 +449,7 @@ if __name__ == '__main__':
     main()
 ```
 
-let's write a frida agent that hooks SomeHttpClass.mo234e();
+let's write a frida agent that hooks SomeHttpClass.getSharedPreference();
 Without jadx deobfuscator, method is named as below
 
 ```java
@@ -465,7 +465,7 @@ if (Java.available) {
         var some_http_class = Java.use("wocwvy.czyxoxmbauu.slsa.b");
         some_http_class.e.overload("andorid.context.Context", "java.lang.String")implementation = function(x, y) {
             var ret = this.e(x, y);
-            send("[*] method called SomeHttpClass.mo234e("+ y +") => return: "+ ret.toString());
+            send("[*] method called SomeHttpClass.getSharedPreference("+ y +") => return: "+ ret.toString());
             return ret;
         }
     })
@@ -473,29 +473,29 @@ if (Java.available) {
 ```
 
 ```sh
-rxOred-aspiree :: ~/Analysis/android � python wrapper.py wocwvy.czyxoxmbauu.slsa mo234e.js
-[!] callback -> [*] method called SomeHttpClass.mo234e("urls") => return: http://cdnjs.su
-[!] callback -> [*] method called SomeHttpClass.mo234e("save_inj") => return: 
-[!] callback -> [*] method called SomeHttpClass.mo234e("cryptfile") => return: false
-[!] callback -> [*] method called SomeHttpClass.mo234e("startRecordSound") => return: stop
-[!] callback -> [*] method called SomeHttpClass.mo234e("startRequest") => return: Access=0Perm=0
-[!] callback -> [*] method called SomeHttpClass.mo234e("startRequest") => return: Access=0Perm=0
-[!] callback -> [*] method called SomeHttpClass.mo234e("recordsoundseconds") => return: 0
-[!] callback -> [*] method called SomeHttpClass.mo234e("lookscreen") => return: 
-[!] callback -> [*] method called SomeHttpClass.mo234e("StringAccessibility") => return: Enable access for
-[!] callback -> [*] method called SomeHttpClass.mo234e("urls") => return: http://cdnjs.su
-[!] callback -> [*] method called SomeHttpClass.mo234e("save_inj") => return: 
-[!] callback -> [*] method called SomeHttpClass.mo234e("cryptfile") => return: false
-[!] callback -> [*] method called SomeHttpClass.mo234e("startRecordSound") => return: stop
-[!] callback -> [*] method called SomeHttpClass.mo234e("recordsoundseconds") => return: 0
-[!] callback -> [*] method called SomeHttpClass.mo234e("lookscreen") => return: 
-[!] callback -> [*] method called SomeHttpClass.mo234e("urls") => return: http://cdnjs.su
-[!] callback -> [*] method called SomeHttpClass.mo234e("save_inj") => return: 
-[!] callback -> [*] method called SomeHttpClass.mo234e("cryptfile") => return: false
-[!] callback -> [*] method called SomeHttpClass.mo234e("startRecordSound") => return: stop
-[!] callback -> [*] method called SomeHttpClass.mo234e("recordsoundseconds") => return: 0
-[!] callback -> [*] method called SomeHttpClass.mo234e("lookscreen") => return: 
-[!] callback -> [*] method called SomeHttpClass.mo234e("keylogger") => return: 
+rxOred-aspiree :: ~/Analysis/android � python wrapper.py wocwvy.czyxoxmbauu.slsa getSharedPreference.js
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("urls") => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("save_inj") => return: 
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("cryptfile") => return: false
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("startRecordSound") => return: stop
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("startRequest") => return: Access=0Perm=0
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("startRequest") => return: Access=0Perm=0
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("recordsoundseconds") => return: 0
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("lookscreen") => return: 
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("StringAccessibility") => return: Enable access for
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("urls") => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("save_inj") => return: 
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("cryptfile") => return: false
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("startRecordSound") => return: stop
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("recordsoundseconds") => return: 0
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("lookscreen") => return: 
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("urls") => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("save_inj") => return: 
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("cryptfile") => return: false
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("startRecordSound") => return: stop
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("recordsoundseconds") => return: 0
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("lookscreen") => return: 
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("keylogger") => return: 
 [... more stuff here]
 ```
 
@@ -508,19 +508,19 @@ for example, when the method is called with `url` as an argument, it returns `ht
 and we can also see that the method is called with `keylogger` as the argument, which gives us a hint that this malware is capable of keylogging.
 
 ```sh
-[!] callback -> [*] method called SomeHttpClass.mo234e("interval") => return: 10000
+[!] callback -> [*] method called SomeHttpClass.getSharedPreference("interval") => return: 10000
 ```
-`SomeHttpClass.mo234e()` method returns value 10000, which is exactly the same value thats going to 
+`SomeHttpClass.getSharedPreference()` method returns value 10000, which is exactly the same value thats going to 
 be used when the condition fails. 
 
-So what exactly `SomeHttpClass.mo234e()` does? Well, I think its reading data from some kind of data storage using the `key`
+So what exactly `SomeHttpClass.getSharedPreference()` does? Well, I think its reading data from some kind of data storage using the `key`
 which it recieves as an argument. Yaeee?? what comes to your mind?? shared preferences!!!.
 
 To confirm our assumption
 
 ```java
-    /* renamed from: e */
-    public String mo234e(Context context, String str) {
+    /* renamed from: mo234e */
+    public String getSharedPreference(Context context, String str) {
         if (shared_pef == null) {
             shared_pef = context.getSharedPreferences("set", 0);
             shared_pref_editor = shared_pef.edit();
@@ -915,7 +915,34 @@ Since the web request that malware returns an empty string, we get nothing decod
 
 As a summery what `MakeTwitterRequest` does is, 
 
+        - makes a requests to the url `https://twitter.com/qweqweqwe`.
+        - read the response html in to a buffer and remove all the spaces.
+        - save the string in between `苏尔的开始`, `苏尔苏尔完` of the response html in `str`.
+        - for each chinese character in `str`, replace it with a corresponding alphanumerical character (which results in a base64 encoded string).
+        - decode what's in `str` and save it back in `str`.
+
 Now we can move onto another interesting methods of the `SomeHttpClass`. 
+
+
+```java
+public void mo211a(Context context, String str, String str2, String str3) {
+        /* 
+        String e = getSharedPreference(context, "websocket");
+        StringBuilder sb = new StringBuilder();
+        sb.append(e);
+
+        [... more code]
+```
+
+above method calls `getSharedPreference` with key being equal to `websocket` and append the return value to a `StringBuilder sb`.
+well if we grep that part out from the xml,
+
+
+```sh
+   <string name="websocket"></string>
+```
+it's empty. Well my guess is that this will be filled later by the malware.
+
 
 
 Lets get an idea of how this malware gets banking applications.
