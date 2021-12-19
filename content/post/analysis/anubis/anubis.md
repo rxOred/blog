@@ -734,20 +734,7 @@ then it gets an `InputStream` from the connection and reads data to `StringBuffe
 ```java
                 this.str = stringBuffer.toString().replace(" ", "");
                 this.str = SomeHttpClass.this.mo208a(this.str, "�����", "�����");  // some chinese characters
-                int i = 0;
-                while (true) {
-                    BankingApps aVar = SomeHttpClass.this.banking_apps;
-                    if (i >= BankingApps.f332s.length) {
-                        break;
-                    }
-                    String str2 = this.str;
-                    BankingApps aVar2 = SomeHttpClass.this.banking_apps;
-                    String str3 = BankingApps.f333t[i];
-                    BankingApps aVar3 = SomeHttpClass.this.banking_apps;
-                    this.str = str2.replace(str3, BankingApps.f332s[i]);
-                    i++;
-                }
-                this.str = SomeHttpClass.this.mo230d(this.str);
+
 ```
 
 The malware then replaces all the spaces with empty string, and calls `SomeHttpClass.mo208a`, passing some random looking
@@ -828,7 +815,58 @@ result:
 ```
 
 So it looks like function is taking three arguments and returning the string between the string specified in the second argument and the third.
+For example, in the above case, Ive called the method with `123456789abcdefhijklmnoqpuvwz` as the first argument and `123456` and `noqpuvwz` as second
+and third arguments. the result is `789abcdefhijklm`.
 
+anyway, back to the code we've been analyzing
+
+```java
+                int i = 0;
+                while (true) {
+                    BankingApps aVar = SomeHttpClass.this.banking_apps;
+                    if (i >= BankingApps.f332s.length) {
+                        break;
+                    }
+                    String str2 = this.str;
+                    BankingApps aVar2 = SomeHttpClass.this.banking_apps;
+                    String str3 = BankingApps.f333t[i];
+                    BankingApps aVar3 = SomeHttpClass.this.banking_apps;
+                    this.str = str2.replace(str3, BankingApps.f332s[i]);
+                    i++;
+                }
+                this.str = SomeHttpClass.this.mo230d(this.str);
+```
+
+we see a while, loop which iterates until variable `i` is grater than or equal to `BankingApps.f332s.legth`.
+the string returned from the previous operation is stored in str and then it has been asigned to `str2`. `str3` is assigned with  `BankingApps.f333t[i]`.
+then `str` is reassigned to itself with its every `BankingApps.f333t[i]` character being replaced with `BankingApps.f332s[i]`, if that makes sense.
+
+So its basically a loop that iterates through two arrays of characters, replacing one array's character in the string `str` with the other ones correspondingcharacter.
+
+Lets take a look at what those arrays are...
+
+```java
+/* renamed from: s */
+    public static final String[] f332s = {"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M", "q", "w", "e", "r", "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "z", "x", "c", "v", "b", "n", "m", "=", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+
+    /* renamed from: t */
+    public static final String[] f333t = {"需", "要", "意", "在", "中", "并", "没", "有", "个", "概", "念", "小", "语", "拼", "亡", "及", "注", "鲜", "新", "死", "之", "类", "阿", "努", "比", "拉", "丁", "化", "体", "系", "都", "只", "斯", "一", "套", "用", "恶", "件", "来", "标", "音", "的", "符", "号", "而", "不", "是", "字", "母", "寂", "寞", "肏", "你", "妈", "屄", "引", "脚", "吸", "员", "会", "膏", "药"};
+
+```
+
+well. this makes sense. Every chinese character in the `str` is replaced with an alphanumerical value. From that, we can assume the intended response for the http request to the url  `https://twitter.com/qweqweqwe` is an html filled with chinese characters and every character in between `"苏尔的开始", ` and `"苏尔苏尔完"` is will be stored in `str`, which will then be replaced with alphanumerical characters.
+
+After the loop, `str` is reassigned to the return value of `SomeHttpClass.mo230d(this.str)`.
+
+```java
+    public String mo230d(String str) {
+        this.consts2.getClass();
+        return mo226c(str, "zanubis");
+    }
+```
+
+
+Now we can move onto another interesting method of the `SomeHttpClass`. 
 
 
 Lets get an idea of how this malware gets banking applications.
