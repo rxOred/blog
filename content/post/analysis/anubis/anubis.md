@@ -530,7 +530,7 @@ To confirm our assumption
     }
 ```
 
-See?
+See? (keep in mind that, when returning from the function is checks whether `str` contains `urls` or `urlInj`, if so, it calles another method with `string` and return it, probably a decoder.)
 
 Now, what we can do is, trace back and find the xml file.
 
@@ -551,7 +551,7 @@ Interceptor.attach(Module.findExportByName(null, "open"), {
 });        
 ```
 
-the resul:
+result:
 
 ```xml
 [!] callback -> [*] open called => ("/data/user/0/wocwvy.czyxoxmbauu.slsa/shared_prefs/set.xml")
@@ -865,8 +865,57 @@ After the loop, `str` is reassigned to the return value of `SomeHttpClass.mo230d
     }
 ```
 
+Alright i guess this is how this malware got its name :). anyways, this method does nothing but calling another method with our string and `zanubis` as an 
+arguments. And i think we should trace it with frida.
 
-Now we can move onto another interesting method of the `SomeHttpClass`. 
+```javascript
+'use strict';
+
+if (Java.available) {
+    Java.perform(function() {
+        var java_string = Java.use("java.lang.String");
+        var some_http_class = Java.use("wocwvy.czyxoxmbauu.slsa.b");
+        some_http_class.d.overload('java.lang.String').implementation = function(x) {
+            send("[*] method called SomeHttpClass.mo230d(\""+x+"\")");
+            var ret = this.d(x);
+            if (ret != undefined) {
+                send(" => return: "+ ret);
+                return ret;
+            }
+            else {
+                send(" => return: undefined");
+                return Java.use('java.lang.String').$new("undefined");
+            }
+        }
+    });
+}
+```
+```sh
+[!] callback -> [*] method called SomeHttpClass.mo230d("ZWViZGQ3NjRjOGZlOWNjMjAzODhhNzFhNzg4MDJi
+")
+[!] callback ->  => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.mo230d("ZWViZGQ3NjRjOGZlOWNjMjAzODhhNzFhNzg4MDJi
+")
+[!] callback ->  => return: http://cdnjs.su
+[!] callback -> [*] method called SomeHttpClass.mo230d("")
+[!] callback ->  => return: 
+[!] callback -> [*] method called SomeHttpClass.mo230d("")
+[!] callback ->  => return: 
+```
+It seems like `MakeTwitterRequest` is not the only function that calls `SomeHttpClass.mo230d()`. And doesnt that string looks familiar? yaee.. its the same string we saw in the shared preference xml file.
+
+```xml
+<string name="urls">ZWViZGQ3NjRjOGZlOWNjMjAzODhhNzFhNzg4MDJi&#10;    </string>
+
+```
+and the return value is a url. `http://cdnjs.su`, it is the same url that we met when we were analyzing `SomeHttpClass.mo234e` with frida, which will 
+return after its been decoded if we request `url` key from the shared preference. So my assumption on `SomeHttpClass.mo226c` being a decoder function is true!
+
+Since the web request that malware returns an empty string, we get nothing decoded :(.
+
+As a summery what `MakeTwitterRequest` does is, 
+
+Now we can move onto another interesting methods of the `SomeHttpClass`. 
 
 
 Lets get an idea of how this malware gets banking applications.
