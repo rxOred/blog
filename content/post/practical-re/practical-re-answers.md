@@ -119,6 +119,6 @@ This 2 part series post will provide some solutions for Exercises in chapter 1, 
 4) edx:eax will be used.
 
 
-# THE-END
+In the next article, we will go through the last exercise
 
-In the next article, we will go through the last exercise :) Until then!
+#Spread Anarchy!

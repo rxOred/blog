@@ -191,7 +191,9 @@ Then there is a loop that increases `rax` register until it finds a null byte. T
 
 And what this function does is pretty simple. it checks if the string length is higher than some value and if yes, it returns after some random value loaded into rax, and else, it simply calls `AmsiScanBuffer`.
 
-## that's it, kids!
+## that's it.
 
 So yeah that's it for now... we explored AMSI in-depth in this article. In the next one, We will go through some common AMSI bypass techniques.
 
+
+#Spread Anarchy!

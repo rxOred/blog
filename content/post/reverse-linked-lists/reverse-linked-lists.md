@@ -474,6 +474,6 @@ and yeap that's it. First it saves next nodes of the `start` and the `end` in tw
         jump loop
 
 
-## THE END
+Oh my freaking god i spent two days writing this damned article. I guess that is it. I hope yall understood what i did here :3
 
-Soooo yeaaaah, Oh mmy freaking god i spent two days writing this damned article. I guess that is it. I hope yall understood what i did here :3
+#Spread Anarchy!

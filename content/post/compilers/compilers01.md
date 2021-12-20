@@ -128,8 +128,8 @@ their usage. ASTs can solve these problems.
 
 Another major usage of ASTs is that a full traversal of the AST data structure represents the correctness of the program. ASTs are heavily used in semantic analysis too.
 
-## THE END
-
 So yeah that's it for the compiler front end. I suggest readers go through "Concepts of programming languages" for more detailed explanations.
 
-I'll do the optimization article soon. until then... 
+I'll do the optimization article soon.
+
+#Spread Anarchy!
