@@ -10,7 +10,7 @@ Tbh, I don't really know what to write here. A few years ago, when I started out
 
 Here I am, editing the first blog post :) 
 
-Anyway, about this blog. Here I will be posting my projects, research, guides, and other useless information on programming, system security, and reverse engineering. I'm also looking forward to starting posting malware analysis reports and CTF writeups.
+Anyway, about this blog. Here I will be posting my projects, research, guides, and other useless information on programming, system security, and reverse engineering. I'm also looking forward to start posting malware analysis reports and CTF writeups.
 
 So, I think that's it :3
 
