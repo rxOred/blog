@@ -5,6 +5,7 @@ draft: false
 cover: "/img/anubis/anubis.jpg"
 description: "reverse engineering the notorious android banking trojan"
 tags: ["reverse-engineering", "android", "malware"]
+readingTime: true
 ---
 
 # Table of Content

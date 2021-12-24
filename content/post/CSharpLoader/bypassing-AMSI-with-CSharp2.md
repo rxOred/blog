@@ -3,7 +3,7 @@ title: "Bypassing AMSI (Antimalware Scan Interface) With CSharp 0x01"
 date: 2021-11-02T12:20:27+05:30
 draft: true
 tags: ["offensive-sekurity", "windoz", "reverse-engineering"]
-categories: ["guide"]
+readingTime: true
 ---
 
 Here we go with the second part of the series. In this article, first we will try to bypass with windbg using the knowledge gained from the

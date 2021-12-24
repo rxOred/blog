@@ -5,7 +5,7 @@ draft: false
 cover: "img/CSharpLoader/windowsdefender.jpg"
 description: "Reverse engineering AMSI internals"
 tags: ["offensive-sekuruty", "windoz", "reverse-engineering"]
-categories: ["guide"]
+readingTime: true
 ---
 
 Ah yes. Windoz, the most popular desktop operating system solution out there. And, the most attacker-friendly operating system out there. At least, `was`.

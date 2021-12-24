@@ -5,7 +5,7 @@ draft: false
 cover: "/img/simplelocker/simplelocker.jpg"
 description: "dissecting simple-locker android ransomware"
 tags: ["reverse-engineering", "ransomware", "android"]
-categories: ["report"]
+readingTime: true
 ---
 
 # Samples

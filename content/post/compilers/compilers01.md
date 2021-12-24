@@ -5,7 +5,7 @@ draft: false
 cover: "/img/compiler101/compilers.png"
 description: " "
 tags: ["reverse-engineering", "compilers"]
-categories: ["guide"]
+readingTime: true
 ---
 
 # Compilers

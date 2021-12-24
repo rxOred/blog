@@ -5,7 +5,7 @@ draft: false
 cover: "img/practicalre/re1.png"
 description: " "
 tags: ["reverse-engineering"]
-categories: ["write-up"]
+readingTime: true
 ---
 
 # Introduction
