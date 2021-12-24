@@ -7,7 +7,32 @@ description: "reverse engineering the notorious android banking trojan"
 tags: ["reverse-engineering", "android", "malware"]
 ---
 
-# Intro
+# Table of Content
+
+1. [Introduction](#introduction)
+    1. [Samples](#samples)
+2. [Environment](#environment)
+    1. [Tools](#tools)
+3. [Analysis](#analysis)
+    1. [The Manifest](#the-manifest)
+    2. [Behavioral analysis](#behavioral-analysis)
+    3. [Identifying the obfuscator](#identifying-the-obfuscator)
+    4. [Packed or what](#packed-or-what)
+    5. [Going Down the Rabbit Hole](#going-down-the-rabbit-hole)
+        1. [MainActivity](#mainactivity)
+        2. [C2s, Tweets and Data Exfiltration](#c2s-tweets-and-data-exfiltration)
+        3. [Audio Recording](#audio-recording)
+        4. [Banking Apps](#banking-apps)
+        5. [Remote Access](#remote-access)
+        6. [Achieving Persistence and User Presence](#achieving-persistence-and-user-presence)
+        7. [SMS Sending, Receiving and Spamming](#sms-sending-receiving-and-spamming)
+        8. [Reading Contacts](#reading-contacts)
+        9. [Say No to google play protect](#say-no-to-google-play-protect)
+        10. [Ransomware Mode](#ransomware-mode)
+4. [The end](#the-end)
+
+
+# Introduction 
 
 Anubis is a pretty big banking trojan that targets android devices. Its first appearance dates back to 2016.
 And anubis is reported to have keylogging capabilities, sms spam, GPS tracking and many other scary stuff, of course, 
@@ -15,25 +40,25 @@ other than stealing your banking information.
 
 In this blog post, i will poke various parts of the malware while reverse engineering it to understand how it works and how to defeat it.
 
-# Samples 
+## Samples 
 
 [github](https://github.com/sk3ptre/AndroidMalware_2020/blob/master/anubis.zip)
 
-# Environment
+# Environment 
 
     - linux host
     - android vm (API version 23) (no google services)
 
-# Tools 
+## Tools 
     - apktool
     - adb
     - frida
     - mobsf
     - jadx-gui
 
-## Analysis 
+# Analysis
 
-### The manifest 
+## The manifest
 
 to analyze the manifest
 ![extracting with apktool](/img/anubis/anubis_apktool.png) 
@@ -61,7 +86,7 @@ to analyze the manifest
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 ```
 
-As we can see, this malware can send, recieve SMS, read contacts, access location, read and write 
+As we can see, this malware can send, receive SMS, read contacts, access location, read and write 
 to external storage. It is also requesting permission to get notified once when the system boots 
 up, which helps malware to persist on a device.
 
@@ -160,7 +185,7 @@ before running the sample on the vm or decompiling it, it would be better to run
 
 ![mobsf results](/img/anubis/anubis_mobsfstatic.png)
 
-here we can see that the application has 17 activities, 24 services, 4 recievers and 0 providers.
+here we can see that the application has 17 activities, 24 services, 4 receivers and 0 providers.
 
 ![apis](/img/anubis/anubis_mobsfapi.png)
 
@@ -173,7 +198,7 @@ considering the result of MobSF.
 
 ![androguard results](/img/anubis/anubis_androguard.png)
 
-here androguard shows us recievers, main activity and the services. 
+here androguard shows us receivers, main activity and the services. 
 
 However all the above names seemed to be obfuscated.
 
@@ -296,7 +321,7 @@ java.lang.NullPointerException: Attempt to get length of null array
 
 I tried running dex-oracle and it failed too. 
 
-## Packed? 
+## Packed or what
 
 Lets try to identify whether is apk is packed. This is pretty straightfoward. To use a class in an 
 android application, one must define it in the manifest file. 
@@ -407,7 +432,7 @@ Then we can see an interesting piece of code in the MainActivity after the if el
 ```java
             getPackageManager().setComponentEnabledSetting(new ComponentName(this, MainActivity.class), 2, 1);
 ```
-According to Android developers, `setComponentEnabledSetting` 'sets te enabled setting fot a package component (activity, reciever, service, provider). this setting will override any enabled state which may have been set by the component manifest'
+According to Android developers, `setComponentEnabledSetting` 'sets te enabled setting fot a package component (activity, receiver, service, provider). this setting will override any enabled state which may have been set by the component manifest'
 
 Here, MainActivity calls above API for itself, with constant 2 as the second argument. which is stands for  `COMPONENT_ENABLED_STATE_DISABLED`.
 In short terms, malware basically **hides its icon from the launcher** (by disabling) to make it harder for a regular user to delete the application.
@@ -541,7 +566,7 @@ and we can also see that the method is called with `keylogger` as the argument, 
 be used when the condition fails. 
 
 So what exactly `SomeHttpClass.mo234e()` does? Well, I think its reading data from some kind of data storage using the `key`
-which it recieves as an argument. Yaeee?? what comes to your mind?? **shared preferences**.
+which it receives as an argument. Yaeee?? what comes to your mind?? **shared preferences**.
 
 To confirm our assumption
 
@@ -1384,7 +1409,7 @@ same applies to this block too...
 ```
 
 this is the block that actually starts the thread :).
-Soo what this method actually does is, it starts recording audio on the given source, waits until `i` amount of time and stops recording. then it calls our `SomeHttpClass.SendFileToEndpoint` method to send it to an endpoint so attacker can recieve the file.
+Soo what this method actually does is, it starts recording audio on the given source, waits until `i` amount of time and stops recording. then it calls our `SomeHttpClass.SendFileToEndpoint` method to send it to an endpoint so attacker can receive the file.
 
 ### Banking Apps
 
@@ -1662,7 +1687,7 @@ It seems like after diconnecting with the attacker, it resets all the associated
 
 **Until now, we have analyzed core features of the anubus banking trojan. Now it is time to take a look at some other features mentioned in the shared preference xml and manifest xml.**
 
-### Achieving Persistance and User Presence
+### Achieving Persistence and User Presence
 
 When we were analyzing the manifest xml file, we came across a broadcast receiver that listens for BOOT_COMPLETE. Let's take a look at that class.
 
@@ -1720,7 +1745,7 @@ Since we have already identified that the return value of `GetSharedPreferences(
 
 next few lines check whether if the action string is equal to `"android.intent.action.USER_PRESENT"`, if so, it starts another service.
 
-### SMS Sending, Recieving and Spamming
+### SMS Sending, Receiving and Spamming
 
 `EventListener.mo443a` also checks whether the action is equal to `"android.intent.action.SMS_RECEIVED"` and value for shared preference key `perehvat_sws` 
 is equal to to true. if so, it calls another method. Since it is clear that `mo443a` method is essentially listening for incoming messages, this could be the one that process and convert it into a content.
@@ -1773,7 +1798,7 @@ then it loops through the object array, and for each object in the array, it cre
 variables `displayOriginatingAddress`, `displayMessageBody` is assigned to `createFromPdu.getDisplayOriginatingAddress()` and `createFromPdu.getDisplayMessageBody()` respectively. And, `displayMessageBody` is appended to `str2`. in the next line, it starts another
 service.
 
-So in summery what this method does is, it retrieves every SMS that has been recieved using the `intent` passed to it by the method that calls it, interate through each and every one of them, parse the SMS to a SmsMessag object using `createFromPdu` method, and start a service passing the originating address and SMS content through the intent after parsing those information. 
+So in summery what this method does is, it retrieves every SMS that has been received using the `intent` passed to it by the method that calls it, interate through each and every one of them, parse the SMS to a SmsMessag object using `createFromPdu` method, and start a service passing the originating address and SMS content through the intent after parsing those information. 
 
 Let's take a look at the new service.
 
@@ -1936,7 +1961,7 @@ public class dshd extends Service {
     SomeHttpClass cls = new SomeHttpClass();
 
     /* renamed from: c */
-    BroadcastReceiver reciever = new BroadcastReceiver() {
+    BroadcastReceiver receiver = new BroadcastReceiver() {
         /* class wocwvy.p003x881dce2d.slsa.oyqwzkyy.p007x2753d1cd.dshd.C00951 */
 
         /* renamed from: onReceive */
@@ -1956,7 +1981,7 @@ public class dshd extends Service {
                 str2 = "";
             }
             bVar.SetSharedPreference(context, str, str2);
-            dshd.this.unregisterReceiver(dshd.this.reciever);
+            dshd.this.unregisterReceiver(dshd.this.receiver);
             dshd.this.stopSelf();
         }
     };
@@ -1969,7 +1994,7 @@ as we have already guessed, it is. `onReceive` method is responsible for checkin
     public int onStartCommand(Intent intent, int i, int i2) {
         this.ctx = this;
         this.cls.SpamSMS(this, intent.getStringExtra("number"), intent.getStringExtra("msg"));
-        registerReceiver(this.reciever, new IntentFilter("SMS_SENT"));
+        registerReceiver(this.receiver, new IntentFilter("SMS_SENT"));
         return 2;
     }
 ```
@@ -2139,7 +2164,7 @@ it looks like those keys refer to some strings that used when asking for permiss
 
 here, it uses previously retreived values to create an `AlertBuilder` that requests permission to disable google play protect.
 
-### Ransomware capabilities
+### Ransomware Mode
 
 We saw it in the manifest that anubis has ransomware capabilities.
 
@@ -2253,10 +2278,10 @@ then the output stream is closed and file is deleted from the disk.
 We can conclude that this method is the on in charge for encrypting and decrypting the file system based on the shared preferene value `status`.
 
 
-### the end
+# The end
 
 This is the longest article I have ever typed. hell its over 2000 lines. So eayh, we started analysis with 0 knowledge on a random malware and dissected various part of it using both dynamic and static analysis techniques to understand what it is capable of doing.  
 
-with our understanding about the malware, we can conclude that anubis is a very sophisticated banking trojan, that is capable of many things. 
+with our understanding about the malware, we can conclude that anubis is a very sophisticated banking trojan, which is capable of many things. 
 
 #Speard anarchy
