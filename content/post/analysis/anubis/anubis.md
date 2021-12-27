@@ -1509,8 +1509,6 @@ when the iteration is finished, it checks if `str` contains following names.
 
 if it does, it replaces the name with an empty string and append the name to the end of `str`.
 
-here is the list of applications that anubis targets.
-
 
 ### Remote Access
 
