@@ -1,5 +1,5 @@
 ---
-title: "Anubis, the notorious banking trojan"
+title: "Anubis, a banking trojan"
 date: 2021-12-13T11:50:35Z
 draft: false
 cover: "/img/anubis/anubis.jpg"
