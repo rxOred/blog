@@ -1,5 +1,5 @@
 ---
-title: "Anubis, a banking trojan"
+title: "Reversing Anubis"
 date: 2021-12-13T11:50:35Z
 draft: false
 cover: "/img/anubis/anubis.jpg"
@@ -475,7 +475,7 @@ def callback(message, data):
 def main():
     if len(sys.argv) < 3:
         print("wrapper.py <appname> <agent>")
-        os.exit(0)
+        sys.exit(0)
 
     source = None
     with codecs.open(sys.argv[2], "r", "utf-8") as f:
@@ -490,12 +490,12 @@ def main():
         script = session.create_script(source)
         script.on('message', callback)
         script.load()
-        
+
         sys.stdin.read()
 
     else:
         print("failed to read the frida agent")
-        os.exit(1)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

@@ -8,13 +8,14 @@ tags: ["offensive-sekuruty", "windoz", "reverse-engineering"]
 readingTime: true
 ---
 
-Ah yes. Windoz, the most popular desktop operating system solution out there. And, the most attacker-friendly operating system out there. At least, `was`.
+In Windows environments, in both initial access and post-exploitation phases, script-based malware plays a major role. Often, hackers utilize microsoft 
+office suite to gain initial access (using droppers, loaders) to the victim and Windows powershell to explore internal network, perform scans... basically to
+do the post exploitation stuff. (well of course, there are powershell based droppers.)
 
-Windows has a really good reputation in the malware industry. Red teamers often use this to their advantage and use malware to maintain persistent access to the victim machine.
+There is something that is common to both of these tools. Windows scripting engine.
 
-Out of the tools that they use to fulfill this task, script-based malware and payloads play a major role. And to execute those stuff, they mostly use Windows PowerShell, a powerful administrative tool mostly used by sysadmins. Another most important software when it comes to windows malware is Microsoft office software. It is a proven fact that the most notable malware outbreaks in the past few years have something to do with VBA macros. in 2007 Microsoft shipped office packages with macro disabled by default. Yet those type of malware is still alive and well.
-
-And as a result, Microsoft and antimalware vendors have developed many security mechanisms to deal with those threats. For example, modern anti-malware solutions can statically analyze scripts, binaries and detect whether they are malicious or not using signatures such as strings.
+And as a result, Microsoft and antimalware vendors have developed many security mechanisms to deal with those threats that utilize script-based malware. 
+For example, modern anti-malware solutions can statically analyze scripts, binaries and detect whether they are malicious or not using signatures such as strings.
 
 And because of that, malware authors use various techniques to bypass those defense mechanisms. One of the major techniques is code obfuscation.
 
@@ -72,7 +73,7 @@ In this article I'm going to focus on the internals of AMSI. in the next one, I'
 
 ## Demo
 
-So let's take SafeSploit as our example.
+So let's take Safetykatz as our example.
 
 When we run the binary, the result we get is.
 ![AMSI](/img/CSharpLoader/AMSI.png)
