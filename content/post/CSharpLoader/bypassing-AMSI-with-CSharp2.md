@@ -1,22 +1,25 @@
 ---
-title: "Bypassing AMSI (Antimalware Scan Interface) With CSharp 0x01"
+title: "From AMSI to Reflection 0x01"
 date: 2021-11-02T12:20:27+05:30
 draft: true
+cover: "/img/CSharpLoader/CSharpLoader2/cover.jpg"
+description: "Bypassing amsi using windbg"
 tags: ["offensive-sekurity", "windoz", "reverse-engineering"]
 readingTime: true
 ---
 
-Here we go with the second part of the series. In this article, first we will try to bypass with windbg using the knowledge gained from the
-previous article. then we will implement those bypasses in Csharp.
+Here we go with the second part of the series. In this article, we will try to bypass amsi with windbg using the knowledge gained from the
+previous article.
 
-# Technique 1 - Why dont we just ret?
+# Why dont we just ret?
 
-This is not a super cool + super hacky trick but it is indeed, really simple. Core idea is `why dont we just ret`. In case you dont know, 
-`ret` instruction is used to return from a subroutine. It indirecly pops return address stored in `esp` into the rip register. So if we can replace few instructions of the `AmsiScanBuffer` with `ret`, we can bypass it.
+This is not a super cool + super hacky trick but it is indeed, really simple. Core idea is **why dont we just ret**. In case you dont know, 
+`ret` instruction is used to return from a subroutine. It indirecly pops return address stored in `rsp` into the `rip` register. So if we can replace 
+few instructions of the `AmsiScanBuffer` with `ret`, we can bypass it.
 
 To analyze the function, let's place a breakpoint at the `AmsiScanBuffer` function, and continue execution using following commands
 
-```ps1
+```
 bp amsi!AmsiScanBuffer 
 g
 ```

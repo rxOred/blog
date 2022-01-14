@@ -4,10 +4,7 @@ date: 2021-09-28T16:21:05Z
 draft: false
 ---
 
-rxOred's real name is Jayod, and I'm a 17-year-old, self-taught programmer from Sri Lanka. Other than building software, I do reverse engineering and malware analysis. I'm also interested in firmware security and computer vision. 
-
-About my education, I started programming when I was 12 with Java. Then I taught myself many things related computer science and computer security.
-And I'm familiar with C/C++ (language of choice :), assembly, python and golang. Currently I follow a higher national diploma while doing A/Ls in technology + higher mathematics stream. 
+rxOred's real name is Jayod, a 17 year-old, self taught programmer / reverse engineer from Hell. 
 
 Spread Anarchy! 
 

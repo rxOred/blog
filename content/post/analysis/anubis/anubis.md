@@ -2281,6 +2281,6 @@ We can conclude that this method is the on in charge for encrypting and decrypti
 
 This is the longest article I have ever typed. hell its over 2000 lines. So eayh, we started analysis with 0 knowledge on a random malware and dissected various part of it using both dynamic and static analysis techniques to understand what it is capable of doing.  
 
-with our understanding about the malware, we can conclude that anubis is a very sophisticated banking trojan, which is capable of many things. 
+with our understanding about the malware, we can conclude that anubis is a very sophisticated banking trojan, and is capable of many things. 
 
 #Speard anarchy

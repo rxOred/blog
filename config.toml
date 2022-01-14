@@ -1,7 +1,7 @@
 baseurl = "https://rxOred.github.io/"
 languageCode = "en-us"
 theme = "hugo-theme-terminal"
-paginate = 5
+paginate = 4
 
 [params]
   # dir name of your main content (default is `content/posts`).
@@ -9,7 +9,7 @@ paginate = 5
   contentTypeName = "post"
 
   # ["orange", "blue", "red", "green", "pink"]
-  themeColor = "pink"
+  themeColor = "light_red"
 
   # if you set this to 0, only submenu trigger will be visible
   showMenuItems = 2
@@ -21,7 +21,7 @@ paginate = 5
   fullWidthTheme = false
 
   # center theme with default width
-  centerTheme = false
+  centerTheme = true
 
   # set a custom favicon (default is a `themeColor` square)
   favicon = "/img/favicon1.ico"
