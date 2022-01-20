@@ -8,6 +8,18 @@ tags: ["offensive-sekuruty", "windoz", "reverse-engineering"]
 readingTime: true
 ---
 
+# Table of Content
+
+1. [Introduction](#introduction)
+2. [Antimalware Scan Interface](#antimalware-scan-interface)
+    1. [AMSI in action](#amsi-in-action)
+3. [AMSI internals](#amsi-internals)
+    1. [AmsiScanString](#amsiscanstring)
+    2. [AmsiScanBuffer](#amsiscanbuffer)
+    3. [CAmsiAntimalware::Scan](#camsiantimalware::scan)
+    4. [AmsiInitialize](#amsiinitialize)
+4. [The End](#the-end)
+
 # Introduction
 
 In Windows environments, in both initial access and post-exploitation phases, script-based malware plays a major role. Often, hackers utilize microsoft 
@@ -51,9 +63,9 @@ So to avoid signature-based detection, the above snippet can be obfuscated like 
 
 And this is a win for malware authors since this is beyond what anti-malware solutions can emulate or detect until AMSI joins the conversation.
 
-# Antimalware Scan Interface (AMSI)
+# Antimalware Scan Interface
 
-AMSI is a standard interface that allows applications to interact with anti-malware products installed on the system. This means is that it provides
+Antimalware Scan Interface, AMSI for short is a standard interface that allows applications to interact with anti-malware products installed on the system. This means is that it provides
 an API for Application developers. Application developers can use the API to implement security features to make sure that the end-user is safe. 
 
 AMSI also enables anti malware vendors to defend againts script based malware.
@@ -68,7 +80,7 @@ According to Microsoft, AMSI provides the following features by default.
 
 As it is clear from those default features, AMSI specifically provides anti-malware security mechanisms to defend against script-based malware. 
 
-## Demo
+## AMSI in action
 
 So let's take Safetykatz as our example.
 
@@ -208,8 +220,7 @@ And here's how this function looks like in disassembly.
 here we can see stack pointer is stored in `r11` register and since this is x64 _stdcall, the first four parameters are stored in rcx, rdx, r8 and r9 
 registers. Rest are stored in the stack. With that information, we can assume a pointer to the `AMSI_RESULT` enum is stored in the stack. 
 
-then we can see few comparisons around global data. if the comparisons turns out to be successful, it calls `WPP_SF_qqDqq` function. (windows sofware
-trace preprocessor).
+then we can see few comparisons around global data. if the comparisons turns out to be successful, it calls `WPP_SF_qqDqq` function. (windows sofware trace preprocessor).
 
 ![](/img/CSharpLoader/ghidra_global_cmp.png)
 
@@ -384,14 +395,7 @@ The whole thing can be roughly decompiled down into below C code.
     }
 ```
 
-Now, I have four questions.
-
-    1.  what is amsi!CAmsiBufferStream class ?
-    2.  what does amsi!CAmsiAntimalware::Scan do ? 
-    3.  how amsi pass the data (buffer) to the anti-malware vendor's registered function ?
-    4.  What is the second member of HAMSICONTEXT ?
-
-Well I think the answers lies in the 2nd question. 
+We are not done yet. Goal here is to understand how AMSI works.
 Therefore, our next target is amsi!CAmsiAntimalware::Scan.
 
 But before drill down into it, we need to construct the `HAMSICONTEXT` structure out of the knowlegde we have.
@@ -470,13 +474,17 @@ rand() % 0x64;
 
 value of `ecx` is then stored in a local variable `loc_rand` and function checks if `r13`, which holds the value of `this->0x1c0` is 0/null. If yes, it jumps to `LAB_7ff9455058c4`. else, it continues exection from next address.
 
-Now we got two control paths to follow. but im not gonna take the jump. 
+Now we got two control paths to follow. but first, I'm not gonna take the jump. 
+
+#### Control flow path 1
 
 ![0x7ffxxxx56bb](/img/CSharpLoader/ghidra_antimalware_0x7ff9455056bb.png)
 
 `0x7ffxxxxx56bb`, address of `this->0x40` gets loaded into `r14`, which then gets stored in a local variable. Next instruction loads `this->0xc0` into `r12` register.
 
 Then there's an unconditional jump and this one jumps directly into a loop. so Im gonna save that part for a debugging session and continue with the other control flow path.
+
+#### Control flow path 2
 
 ![](/img/CSharpLoader/ghidra_antimalware_lab_58c4.png)
 
@@ -527,7 +535,7 @@ In the above snippet, `rdi` (result) is assigned to value of `eax`. if we go up 
 see `eax` is assigned 
 with `local_108`.
 
-Since we have some interesting points, it is time to get into a windbg session.
+Now we know some interesting places to place breakpoints and analyze, it is time to get into a windbg session.
 
 First, Im gonna place a break point at address at place where `provider` is checked.
 
@@ -581,7 +589,7 @@ pointed at heap.
 
 Value at `*this->0x40` looks like a function pointer and when disasseble that 
 address, windbg prints disassembly of `MpOav!DllRegisterServer` (another dll ? we'll see)but disassembly 
-starts from the middle of the function. So I suspect this might not be a function pointer 
+starts from the middle of the function. This might not be a function pointer after all. 
 
 ![](/img/CSharpLoader/windbg_amsiantimalware_0xc0.png)
 
@@ -589,6 +597,8 @@ here is another place where a member of `CAmsiAntimalware` class has been refere
 this time as we've discussed when doing static analysis, stores address `this->0xc0`.
 
 It doesnt provide us with imformation about type of data even if we take a look at the data at that address, 
+
+#### Control flow path 1 continued
 
 Now we are at the instruction in disassembly where that loop begins.
 
@@ -618,20 +628,21 @@ takes 0x18 th offset of it and stores it back in `rax` register. Then that addre
 `gaurd_dispatch_icall_fptr`.
 
 With that information it is clear that `this->0x40` is a pointer to an object of an unknown class. `rcx` now points to that object and `rax` holds one of function pointers in the object's
-vftable.
+vftable. Well my guess is that this is the windows defender's AMSI COM interface.
 
 The first argument passed to the function is  `this->0x40`.
 Second, third and fourth are passed through `rdx` and `r8` registers. we can see that in the  
 disassembly `rdx` being set to `rsp+0x70` (amsiBuffer) and `r8` being initialized to the address of `rsp
 +0x40` (who's value is 0).  
 
-Weird thing is, the function is jumping to the middle of a function. 
+Weird thing is, the function is jumping into the middle of a function. 
 
 Let's try following it.
 
 ![](/img/CSharpLoader/windbg_mpoav_ret.png)
 
-Well this makes it bit clear. First of all we not jumping into the middle of a function, See that `ret` instruction up there? What this tells us is, we jumped into a function but it is not labelled correctly.
+Well this makes it bit clear. First of all we not jumping into the middle of a function, See that `ret` 
+instruction up there? What this tells us is, we jumped into a function but it is not labelled correctly.
 
 However if you try to goto this address from a disassembler, it will fail. Indicating that this
 a function from another dll.
@@ -650,48 +661,346 @@ To confirm that, let's check the registry.
 Now it is confirmed, let's go through this function.
 
 ```asm
-00007fffae7b37f0 48895c2408     mov     qword ptr [rsp+8], rbx
-00007fffae7b37f5 48896c2410     mov     qword ptr [rsp+10h], rbp
-00007fffae7b37fa 4889742420     mov     qword ptr [rsp+20h], rsi
-00007fffae7b37ff 57             push    rdi
-00007fffae7b3800 4156           push    r14
-00007fffae7b3802 4157           push    r15
-00007fffae7b3804 4883ec20       sub     rsp, 20h
-00007fffae7b3808 4d8bf0         mov     r14, r8
-00007fffae7b380b 4c8bfa         mov     r15, rdx
-00007fffae7b380e 488bf1         mov     rsi, rcx
-00007fffae7b3811 4d85c0         test    r8, r8          ; check third param
-00007fffae7b3814 750a           jne     MpOav!DllRegisterServer+0x1090 (00007fffae7b3820)
-00007fffae7b3816 b857000780     mov     eax, 80070057h  ; E_INVALIDARG
-00007fffae7b381b e96e010000     jmp     MpOav!DllRegisterServer+0x11fe (00007fffae7b398e)
+MpOav!DllRegisterServer+0x1060:
+00007fffae7b37f0 48895c2408      mov     qword ptr [rsp+8],rbx
+00007fffae7b37f5 48896c2410      mov     qword ptr [rsp+10h],rbp
+00007fffae7b37fa 4889742420      mov     qword ptr [rsp+20h],rsi
+00007fffae7b37ff 57              push    rdi
+00007fffae7b3800 4156            push    r14
+00007fffae7b3802 4157            push    r15
+00007fffae7b3804 4883ec20        sub     rsp,20h
+00007fffae7b3808 4d8bf0          mov     r14,r8
+00007fffae7b380b 4c8bfa          mov     r15,rdx
+00007fffae7b380e 488bf1          mov     rsi,rcx
+00007fffae7b3811 4d85c0          test    r8,r8
+00007fffae7b3814 750a            jne     MpOav!DllRegisterServer+0x1090 (00007fffae7b3820) 
+
+MpOav!DllRegisterServer+0x1086:
+00007fffae7b3816 b857000780      mov     eax,80070057h
+00007fffae7b381b e96e010000      jmp     MpOav!DllRegisterServer+0x11fe (00007fffae7b398e) 
 ```
 
-First it does some work on the stack frame and moves `0x80070057` to `rax` register if third parameter is null (pointer to a stack variable of CAmsiAntimalware::Scan method), And we know this is `E_INVALIDARG`. And then function jumps to the epilogue. So this is basically a small sanity check.
+First it does some work on the stack frame and moves `0x80070057` to `rax` register if third parameter is null 
+(pointer to a stack variable of CAmsiAntimalware::Scan method), And we know this is `E_INVALIDARG`. And then 
+function jumps to the epilogue. So this is basically a small sanity check.
 
 ```asm
 00007fffae7b3820 41c70001000000 mov     dword ptr [r8], 1 ds:000000931c9ce770=00000000
 00007fffae7b3827 80b9c800000000 cmp     byte ptr [rcx+0C8h], 0 ds:00000250a33025d8=00
 ```
 
-then it moves 1 into third parameter and checks if first parameter (rcx) + 200 is 0.
-We know that first parameter passed down to this function is `CAmsiAntimalware->0x40`.
+then it moves 1 or `AMSI_RESULT_NOT_DETECTED` into third parameter and checks if first parameter (rcx) + 200 is 0.
+We know that first parameter (rcx) passed down to this function is `CAmsiAntimalware->0x40`. (yes doesnt make 
+much sense.)
+
+![](/img/CSharpLoader/windbg_mpoav_200_check.png)
+
+In our case, comparison turns out to be true.
+
+A little below that, there's a call to another fuction from this dll.
+
+```asm
+MpOav!DllRegisterServer+0x10d5:
+00007fffae7b3865 488d6970         lea     rbp, [rcx+70h]
+00007fffae7b3869 488bcd           mov     rcx, rbp
+00007fffae7b386c ff15f6120300     call    qword ptr [MpOav!DllRegisterServer+0x323d8 (00007fffae7e4b68)]
+```
+
+it seems to take only one argument and it is `&rcx+0x70`.
+
+![](/img/CSharpLoader/windbg_enter_critical_section.png)
+
+if we step into it, windbg indentifies function as `RtlEnterCriticalSection` from ntdll. According to [msdn](https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-entercriticalsection), 
+`EnterCriticalState` function waits for ownership of the specified 
+critical section object. The function returns when the calling thread is granted ownership. function accepts a 
+single parameter and it 
+is of `LPCRITICAL_SECTION `.
+
+In this case, critical section that this function waits for is `rcx+0x70`.
+
+![](/img/CSharpLoader/windbg_0x98_0x0.png)
+
+next few instructions compare `rsi+0x98` with 0 (both rsi and rcx pointed to same address but since rcx now 
+points to rcx+0x70, rsi is 
+used). if comparison fails, it jumps to another location disassembly where `LeaveCriticalState` is being called.
+
+![](/img/CSharpLoader/windbg_rcx_0x60.png)
+
+as shown in the above diagram, function loads `rbp`, which points to the critical section (rsi->0x70) into 
+`rcx`. Then 
+`LeaveCriticalState` function is called.
+
+then two local variables, rsp+0x54 and rsp+0x50, get initialized to 0x0 and 0x1, following a `mov` instruction 
+which loads a global variable into `rcx`. then it does a comparison of `rcx+0x60` with 0.
+
+In our case, comparision fails and for that reason, jump will be taken.
+
+```asm
+MpOav!DllRegisterServer+0x1198:
+00007fffae7b3928 488b4138         mov     rax, qword ptr [rcx+38h] ds:00000250a357c158=00000250a356b1f0
+00007fffae7b392c 4c8d442450       lea     r8, [rsp+50h]
+00007fffae7b3931 498bd7           mov     rdx, r15
+00007fffae7b3934 488b4948         mov     rcx, qword ptr [rcx+48h]
+```
+
+here we can see another call. 
+
+`rcx` is set to `[rcx+0x48]` and `rdx` is loaded with `amsiBuffer` meanwhile `r8`, third argument is loaded with 
+address `rsp+0x50`.
+
+![](/img/CSharpLoader/windbg_mpamsiscan.png)
+
+as we can see in the above diagram, this call is to `MPCLIENT!MpAmsiScan` function. This is basically a function
+exported by windows defender's MPCLIENT.dll. So this means we have reached our destination.
+
+![](/img/CSharpLoader/windbg_mpclient.png)
+
+Let's step over this function and inspect the return value since it is out of scope of this article to reverse 
+engineer windows defender internals.  
+
+![MPCLIENT!MpAmsiScan result](/img/CSharpLoader/windbg_mpscan_result.png)
+
+According the above diagram, the return value we get is 0x0. And there's no way to determine whether this is a 
+indication of detection or not because windows documentation does not provide imformation about `MpAmsiScan`
+
+Therefore we have to try some tricky methods to identify it.
+
+First, im going to continue the exection.
+
+as expected the result is, 
+
+![](/img/CSharpLoader/powershell_bad.png)
+
+Then we can place a breakpoint at the address where `MpAmsiScan` return and send some non-malicous input.
+
+Weirdly enough, return value is same. So this function must be using an output parameter to pass the result of
+the scan, just like `AmsiScanBuffer`.
+
+Can you remember that the third parameter to `MpAmsiScan` is a pointer to a local variable? Just in case, keep 
+it's address in mind.
+
+
+Somewhere down below, before the program generates an event saying safetykatz is malicious, return value or 
+output parameter of `MpAmsiScan` must be accessed in order determine whether it's detected by windows defender 
+or not.
+
+Back to where we left off,
+
+return value of `MpAmsiScan` is stored in `edi` register and function compares it with 0 after moving some value 
+to `rcx` register. 
+
+```asm
+00007fffae7b3945 8bf8             mov     edi, eax
+00007fffae7b3947 488b0d32f90300   mov     rcx, qword ptr [MpOav!DllRegisterServer+0x40af0 (00007fffae7f3280)]
+
+MpOav!DllRegisterServer+0x11be:
+00007fffae7b394e 85ff             test    edi, edi
+00007fffae7b3950 7925             jns     MpOav!DllRegisterServer+0x11e7 (00007fffae7b3977) [br=1]
+```
+
+if return value (edi) is greater than or equal to zero,
+
+```asm
+MpOav!DllRegisterServer+0x11e7:
+00007fffae7b3977 837c245401       cmp     dword ptr [rsp+54h], 1
+00007fffae7b397c 0f94c0           sete    al
+00007fffae7b397f 8886c8000000     mov     byte ptr [rsi+0C8h], al
+00007fffae7b3985 8b442450         mov     eax, dword ptr [rsp+50h]
+00007fff`ae7b3989 418906           mov     dword ptr [r14], eax
+```
+
+it sets value of third parameter (pointed by r14) to 1 and simply returns. Also note that return value is set to
+`edi`.
+
+else if return value of `MpAmsiScan` (edi) is less than 0, 
+
+```asm
+MpOav!DllRegisterServer+0x11c2:
+00007fffae7b3952 483bcb          cmp     rcx,rbx
+00007fffae7b3955 7435            je      MpOav!DllRegisterServer+0x11fc (00007fffae7b398c)
+
+MpOav!DllRegisterServer+0x11c7:
+00007fffae7b3957 f6411c01        test    byte ptr [rcx+1Ch],1
+00007fffae7b395b 742f            je      MpOav!DllRegisterServer+0x11fc (00007fffae7b398c)
+
+MpOav!DllRegisterServer+0x11cd:
+00007fffae7b395d ba11000000      mov     edx,11h
+00007fffae7b3962 448bcf          mov     r9d,edi
+00007fffae7b3965 4c8d050c700300  lea     r8,[MpOav!DllRegisterServer+0x381e8 (00007fffae7ea978)]
+00007fffae7b396c 488b4910        mov     rcx,qword ptr [rcx+10h]
+00007fffae7b3970 e803f2ffff      call    MpOav!DllRegisterServer+0x3e8 (00007fffae7b2b78)
+00007fffae7b3975 eb15            jmp     MpOav!DllRegisterServer+0x11fc (00007fff`ae7b398c)
+```
+
+it checks validity of some data and calls a function and then returns after setting return value to that of 
+`MpAmsiScan` stored in `edi` register, just like the previous one.
+
+```asm
+00007fffae7b398c 8bc7             mov     eax, edi
+00007fffae7b398e 488b5c2440       mov     rbx, qword ptr [rsp+40h]
+00007fffae7b3993 488b6c2448       mov     rbp, qword ptr [rsp+48h]
+00007fffae7b3998 488b742458       mov     rsi, qword ptr [rsp+58h]
+00007fffae7b399d 4883c420         add     rsp, 20h
+00007fffae7b39a1 415f             pop     r15
+00007fffae7b39a3 415e             pop     r14
+00007fffae7b39a5 5f               pop     rdi
+00007fff`ae7b39a6 c3               ret
+```
+
+Because the return value we got from `MpAmsiScan` is 0x0, execution path will be the first one we've discussed 
+above. 
+
+There is something interesting that we havent discussed about that control flow path. There is a comparison of 
+`rsp+0x54` and 1. if that comparison is able to set zero flag, next instruction sets `al` register to 1.
+
+in our case, `rsp+0x54` is not equal to 1.
+
+```asm
+0:018> dd @rsp+0x54 L1
+00000015`8864e564  00000000
+```
+
+which means, `al` wont be set to 1. If you can remember, `rsp+0x54` is only accessed once, just after the call 
+to `LeaveCriticalState` and that that is the only instruction that sets `rsp+0x54` to 0x0. My guess is that this 
+checks if function has entered the `LeaveCriticalSection` block. It then sets `[rsi+0C8h]` (rsi == first 
+parameter) to the value of `al`. Note that `rsi+0xc8` should be set to zero in order for this function to be 
+sucessful. We discussed rest of this block earlier.
+
+after the function returns, we'll end up back at `CAmsiAntimalware::Scan`. Good news is, we dont need to read
+every instruction since we already know what we are looking for.
+
+![](/img/CSharpLoader/decompiler_call.png)
+
+Above image shows how the call looks in decompiled pseudo code. return value of the callee is stored in local 
+variable `uVar2`. However, we know this is not accurate because caller need to pass three args to the callee (we see none). That's not important to us though.
+
+![](/img/CSharpLoader/decompiler_var100.png)
+
+Here, the if confition only evaluate true when `loc_rand()` is equal to zero and a global variable is less than 5. `loc_rand` is basically the local variable where the random number was stored. Therefore this block is not
+going to execute.
+
+![](/img/CSharpLoader/decompiler_check_var2.png)
+
+Above if condition checks if return value (stored in r14) is zero. In our case it is. 
+we know that the third argument passed to the collee is the address of `rsp+0x40` and was passed through `r8`. 
+
+below image shows disassembly of the above snippet
+
+```asm
+amsi!CAmsiAntimalware::Scan+0x1ed:
+00007fffae8357ed 4585f6          test    r14d,r14d
+00007fffae8357f0 757f            jne     amsi!CAmsiAntimalware::Scan+0x271 (00007fffae835871)
+
+amsi!CAmsiAntimalware::Scan+0x1f2:
+00007fffae8357f2 448b07          mov     r8d,dword ptr [rdi]
+00007fffae8357f5 8b442440        mov     eax,dword ptr [rsp+40h]
+00007fffae8357f9 443bc0          cmp     r8d,eax
+00007fffae8357fc 7f2d            jg      amsi!CAmsiAntimalware::Scan+0x22b (00007fffae83582b)
+```
+
+As shown above, `mov    r8d, dword ptr[rdi]` moves value at address stored in `rdi` into `r8` register. `rdi` stores the address of `AMSI_RESULT` enum passed down to `CAmsiAntimalware::Scan` method. it then moves `rsp+0x40`, output paramater we discussed earlier into `eax` register.
+
+![](/img/CSharpLoader/windbg_r8_rax_compare.png)
+
+comparison instruction and jump instruction checks if value in `r8` (result) is greater than that of in `eax` (output parameter). jump wont be taken and execution will directed to the next mov instruction. 
+
+This is basically checking if current scan's result is greater than that of previous one.
+
+```asm
+amsi!CAmsiAntimalware::Scan+0x1fe:
+00007fffae8357fe 8907            mov     dword ptr [rdi],eax
+00007fffae835800 4d8bef          mov     r13,r15
+00007fffae835803 488b0df6b70000  mov     rcx,qword ptr [amsi!WPP_GLOBAL_Control (00007fffae841000)]
+00007fffae83580a 488d15efb70000  lea     rdx,[amsi!WPP_GLOBAL_Control (00007fffae841000)]
+00007fffae835811 483bca          cmp     rcx,rdx
+00007fffae835814 7451            je      amsi!CAmsiAntimalware::Scan+0x267 (00007fffae835867)
+
+amsi!CAmsiAntimalware::Scan+0x216:
+00007fffae835816 f6411c04        test    byte ptr [rcx+1Ch],4
+00007fffae83581a 744b            je      amsi!CAmsiAntimalware::Scan+0x267 (00007fffae835867)
+
+amsi!CAmsiAntimalware::Scan+0x21c:
+00007fffae83581c 4c894c2430      mov     qword ptr [rsp+30h],r9
+00007fffae835821 418d561f        lea     edx,[r14+1Fh]
+00007fffae835825 89442428        mov     dword ptr [rsp+28h],eax
+00007fffae835829 eb28            jmp     amsi!CAmsiAntimalware::Scan+0x253 (00007fff`ae835853)
+```
+
+In the above snippet it loads `eax` into `[rdi]`, and value of `r15` into `r13` and compare some global variables related to `WPP`. 
+
+According to the decompiled snippet, this checks some global variables related to WPP tracer and if checks are
+valid, it jumps to a location in disassembly after setting `rdx` register to the address `r14 + 1f`. Well this has nothing to do with addresses eventhough the instruction is `lea`. `r14` is 0x0. therefore what this does is, it loads `0x1f` into `rdx` register.
+
+However, if we step through each instruction, `cmp    rcx, rdx` will evaluate to 0x0 and the jump will be taken.
+
+```asm
+amsi!CAmsiAntimalware::Scan+0x267:
+00007fffae835867 813f00800000    cmp     dword ptr [rdi],8000h
+00007fffae83586d 7d50            jge     amsi!CAmsiAntimalware::Scan+0x2bf (00007fffae8358bf) 
+
+amsi!CAmsiAntimalware::Scan+0x26f:
+00007fffae83586f eb34            jmp     amsi!CAmsiAntimalware::Scan+0x2a5 (00007fff`ae8358a5)
+```
+
+in the above snippet, dword value at address stored in `rdi` is compared to hex 0x8000, decimal 32768. Aand this is exactly the same value [msdn](https://docs.microsoft.com/en-us/windows/win32/api/amsi/ne-amsi-amsi_result) specifies in their documentation for `AMSI_RESULT` enum. quoting msdn,
+
+        'Any return result equal to or larger than 32768 is considered malware, and the content
+        should be blocked. An app should use AmsiResultIsMalware to determine if this is the case.'
+
+next instruction is a `jge` and it essentially takes the jump if dword at address stored in `rdi` (AMSI_RESULT) is greater than or equal to 0x8000. if it is, it breaks from the loop.
+
+In our case, value at address stored in `rdi` is less than 0x8000 so the jump won't be taken.
+Instead control flow will be redirected to 
+
+```asm
+amsi!CAmsiAntimalware::Scan+0x2a5:
+00007fffae8358a5 488344246008    add     qword ptr [rsp+60h],8
+00007fffae8358ab 49ffc7          inc     r15
+00007fffae8358ae 4983c410        add     r12,10h
+00007fffae8358b2 4c3bbec0010000  cmp     r15,qword ptr [rsi+1C0h]
+00007fffae8358b9 0f820efeffff    jb      amsi!CAmsiAntimalware::Scan+0xcd (00007fffae8356cd) 
+```
+
+`r15` is incremented by 1 and it is then compared to `this->0x1c0`, whose value is 1. if `r15` is below
+that value, it will jump to the address where the loop begins.  
+
+Possibly, the loop is going through every registered anti-malware vendor's COM interface. Since I dont have any anti malware services installed in the VM, its going to loop only once. This also uncovers some
+details about `CAmsiAntimalware` class members. The loop terminates after loop iterator veriable being compared to `this->0x1c0`. Therefore `this->0x1c0` is the value that indicates number of registered anti malware services or AMSI providers.
+
+
+![](/img/CSharpLoader/ghidra_iterate_through_providers.png)
+
+Now the question is, we just executed a malicous program and it just got flagged as `AMSI_RESULT_NOT_DETECTED`. But we still see powershell produces that red ugly output saying that it detected a malicous program.
+
+And suprisingly, there's no call to `AmsiResultIsMalware`.
+
+```asm
+00007fffae8358c4 4c3baec0010000  cmp     r13,qword ptr [rsi+1C0h]
+00007fffae8358cb 732a            jae     amsi!CAmsiAntimalware::Scan+0x2f7 (00007fffae8358f7) 
+
+amsi!CAmsiAntimalware::Scan+0x2cd:
+00007fffae8358cd 448bf3          mov     r14d,ebx
+00007fffae8358d0 4d85e4          test    r12,r12
+00007fffae8358d3 7428            je      amsi!CAmsiAntimalware::Scan+0x2fd (00007fff`ae8358fd)
+```
+
+First if condition checks if `r13` register is less than the number of providers (this->0x1c0). We saw 
+that `r15`, which acts as the counter loaded into `r13` previously. What this is checking is that if
+anything malicous detected before going through all the providers.
+
+
+
 
 Now it is time to conclude our assumptions on AmsiInitialize.
 
 ## AmsiInitialize
 
-So the conclusion is, when `AmsiInitialize` function gets called, it initializes the anti-malware vendor, 
-registers it, and returns a 
-handler that contains a pointer to a registered function.`AmsiScanBuffer` function is responsible for doing 
-some basic checks on the 
-handler, extracting registered function from the
- handler and calling it with necessary parameters.
 
 
+# The End
 
-# The End.
-
-So yeah that's it for now... we explored AMSI in-depth in this article. In the next one, We will go through some common AMSI bypass 
+So yeah that's it for now... we explored AMSI in-depth in this article. In the next one, We will go through some 
+common AMSI bypass 
 techniques.
 
 

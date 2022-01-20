@@ -16,7 +16,7 @@ It is also provides APIs for userland shared library function redirection. under
 
 ## [unnatural](https://github.com/rxOred/unnatural)
 
-Unnatural is a elf anomaly detector and disinfector written in Go. Initially wanted to do this with few people I know, but things went badly and now I develop it. Still in the early stages of development.
+Unnatural is Go program that detects infected elf binaries. 
 
 ## [spidyBOT](https://github.com/rxOred/spidyBOT)
 
