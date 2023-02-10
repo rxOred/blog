@@ -1,7 +1,8 @@
 ---
 title: "Deep Dive Into Ballerina Runtime"
 date: 2023-02-03T16:28:21+05:30
-draft: true
+draft: false
+cover: "/img/compiler101/ballerina.jpg"
 description: "diving deep into runtime of ballerina language"
 tags: ["compilers"]
 readingTime: true
