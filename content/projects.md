@@ -4,7 +4,7 @@ date: 2021-09-28T22:10:39Z
 draft: false
 ---
 
-## [chip8] (https://github.com/rxOred/chip8)
+## [chip8](https://github.com/rxOred/chip8)
 
 chip-8 emulator written in rust.
 
